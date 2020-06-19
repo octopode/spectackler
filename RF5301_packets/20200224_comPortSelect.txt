@@ -1,0 +1,69 @@
+Event Display Export
+
+Capture file: C:\Users\Public\Documents\Frontline Test Equipment\My Capture Files\Capture-2020-02-24_164250.cfa
+
+--------------------------------------------------
+Special Event Key
+
+<AB> = Abort
+<BC> = Begin Char Strip
+<BF> = Broken Frame
+<BO> = Buffer Overflow
+<BR> = Bit Rate Change
+<C-> = Capture Paused
+<C+> = Capture Resumed
+<D-> = Test Device Not Responding
+<D+> = Test Device Began Responding
+<DS> = Dropping Sync
+<EC> = End Char Strip
+<EF> = End of Frame
+<F-> = Flow Control Inactive
+<F+> = Flow Control Active
+<FD> = Frames Dropped
+<IC> = I/O Settings Changed
+<LB> = Long Break
+<LP> = Low Power
+<PO> = Power Ok
+<RC> = Frame Recognizer Changed
+<S-> = Spied "Set XOFF" Command
+<S+> = Spied "Set XON" Command
+<SB> = Short Break
+<SC> = Spied "Close Port" Command
+<SF> = Start of Frame
+<SH> = Sync Hunt
+<SI> = Signal Change
+<SL> = Sync Lost
+<SO> = Spied "Open Port" Command
+<SR> = Spied "Purge Read" Command
+<SW> = Spied "Purge Write" Command
+<SY> = Sync Found
+<T-> = Timestamping Turned Off
+<T+> = Timestamping Turned On
+<TF> = Truncated Frame
+<UC> = Underrun Condition
+<??> = Unknown
+
+--------------------------------------------------
+Event Display Data
+
+Capture File: 
+C:\Users\Public\Documents\Frontline Test Equipment\My Capture Files\Capture-2020-02-24_164250.cfa
+
+Events Exported:
+Event 1 (2/24/2020 5:18:20.525747 PM) through
+Event 6 (2/24/2020 5:18:33.879121 PM)
+
+Total events in Event Display: 1 - 6
+Side: Both
+Display All Events is ON
+Timestamp format: Absolute
+
+--------------------------------------------------
+Date Time AM/PM               Delta   Event_Number   Byte_Number   Frame_Number   Type  Hex  Dec  Oct      Bin      Side   7-bit_ASCII   RTS CTS DSR DTR  CD  RI   UART_Overrun   Parity_Error   Framing_Error
+-----------------------------   -----------------   ------------   -----------   ------------   ---- ---- ---- ---- --------   -------   ------   --- --- --- --- --- ---   ------------   ------------   -------------
+  2/24/2020 5:18:20.525747 PM                 n/a              1             0            n/a   Spec <SI> <SI> <SI>     <SI>     n/a        n/a     1   0   0   1   0   0            n/a            n/a             n/a
+  2/24/2020 5:18:20.525747 PM      0:00:00.000000              2             0            n/a   Spec <SI> <SI> <SI>     <SI>     n/a        n/a     0   0   0   0   0   0            n/a            n/a             n/a
+  2/24/2020 5:18:20.526786 PM      0:00:00.001039              3             0            n/a   Spec <SI> <SI> <SI>     <SI>     n/a        n/a     0   1   1   0   0   1            n/a            n/a             n/a
+  2/24/2020 5:18:20.526786 PM      0:00:00.000000              4             0            n/a   Spec <SI> <SI> <SI>     <SI>     n/a        n/a     1   1   1   1   0   1            n/a            n/a             n/a
+  2/24/2020 5:18:20.526787 PM      0:00:00.000001              5             0            n/a   Spec <SI> <SI> <SI>     <SI>     n/a        n/a     1   1   1   1   0   0            n/a            n/a             n/a
+  2/24/2020 5:18:33.879121 PM      0:00:13.352334              6             0            n/a   Spec <C-> <C-> <C->     <C->     n/a        n/a   n/a n/a n/a n/a n/a n/a            n/a            n/a             n/a

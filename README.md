@@ -4,7 +4,7 @@ Drivers and software for making spectrophotometric measurements under pressure.
 
 **Teach your old spec new tricks!**
 
-These drivers and interfaces provide an cross-patform, open-source interface for
+These drivers and interfaces provide an cross-platform, open-source interface for
 instruments that previously required proprietary Windows software.
 
 ## Hardware drivers
@@ -20,6 +20,8 @@ instruments that previously required proprietary Windows software.
 * ISCO 260D high-pressure syringe pump `planned`
 
 ## Data collection suites
+
+* Ratiometric fluorimetry (e.g. Laurdan)
 
 * Steady-state fluorescence anisotropy `planned`
 

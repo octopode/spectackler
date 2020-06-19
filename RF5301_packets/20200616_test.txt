@@ -1,0 +1,25 @@
+20200224_GoTo_ex340_em560.txt
+20200225_Scan_ex370_em400-550.txt
+PARSE ERR
+20200224_Connect_InitSelfTest.txt
+PARSE ERR
+20200224_SingleRead_ex365_em440.txt
+PARSE ERR
+20200616_test.txt
+PARSE ERR
+20200224_ShutterClosedToOpen.txt
+20200224_Connect_AlreadyInit.txt
+20200225_Scan_ex370_em400-550_slow2.txt
+20200224_comPortSelect.txt
+PARSE ERR
+20200224_ShutterClosedToOpen_oneRow.txt
+PARSE ERR
+20200225_Scan_ex370_em400-550_slow.txt
+20200224_GoTo_ex340_em440.txt
+20200224_LampAlignCycle.txt
+20200224_Scan_ex365_em400-550.txt
+20200224_disconnect.txt
+PARSE ERR
+20200224_ShutterOpenToClosed.txt
+20200224_AutoZero.txt
+[]
