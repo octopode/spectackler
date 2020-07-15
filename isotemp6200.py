@@ -19,248 +19,231 @@ GNU General Public License for more details.
 """
 
 import serial
+import time
 import io
 from re import sub
 
-def str2float(string):
-	return sub("[^0123456789\.]", "", string)
+def str2float(bytestring):
+    return float(sub("[^0123456789\.]", "", bytestring.decode()))
+    
+def str2bool(bytestring):
+    "Convert b'0'/b'1' to Boolean. b'' also returns False."
+    return bool(int('0'+bytestring.decode().strip()))
 
 class IsotempController:
-	def __init__(self, port, baud=9600, timeout=1):
-		"""
-		Open serial interface, return fault status.
-		The serial handle becomes a public instance object.
-		"""
-		ser = serial.Serial(port=port, baudrate=baud, timeout=timeout)
-		# IO wrapper gets readline() to work right
-		self.__sio__ = io.TextIOWrapper(io.BufferedRWPair(ser, ser))
-		#self.__sio__.write("RSUM\r".encode())
-		self.__sio__.write("RSUM\r")
-		self.__sio__.flush()
-		rsum = str(self.__sio__.readline()).strip()
-		print(rsum) #TEST
-		if len(rsum) != 4: # need additional criteria here for acceptable rsum
-			self.__sio__.close()
-			raise Exception("{} is not behaving like an Isotemp 6200".format(port))
-			
-	def disconnect():
-		self.__sio__.close()
-		
-	"""
-	## SET COMMANDS ##
-	Acceptable types and ranges vary; see Isotemp 6200 user manual for serial
-	command table. Success returns the string "OK". Failure results in an
-	error string from hardware.
-	"""
-		
-	def set_displayed_setpoint(self, val):
-		self.__sio__.write("SS {}\r".format(val))
-		self.__sio__.flush()
-		return self.__sio__.readline()
-
-	def set_setpoint_x(self, val):
-		self.__sio__.write("SSX {}\r".format(val))
-		self.__sio__.flush()
-		return self.__sio__.readline()
-
-	def set_high_temperature_fault(self, val):
-		self.__sio__.write("SHTF {}\r".format(val))
-		self.__sio__.flush()
-		return self.__sio__.readline()
-
-	def set_high_temperature_warning(self, val):
-		self.__sio__.write("SHTW {}\r".format(val))
-		self.__sio__.flush()
-		return self.__sio__.readline()
-
-	def set_low_temperature_fault(self, val):
-		self.__sio__.write("SLTF {}\r".format(val))
-		self.__sio__.flush()
-		return self.__sio__.readline()
-
-	def set_low_temperature_warning(self, val):
-		self.__sio__.write("SLTW {}\r".format(val))
-		self.__sio__.flush()
-		return self.__sio__.readline()
-
-	def set_proportional_heat_band_setting(self, val):
-		self.__sio__.write("SPH {}\r".format(val))
-		self.__sio__.flush()
-		return self.__sio__.readline()
-
-	def set_proportional_cool_band_setting(self, val):
-		self.__sio__.write("SPC {}\r".format(val))
-		self.__sio__.flush()
-		return self.__sio__.readline()
-
-	def set_integral_heat_band_setting(self, val):
-		self.__sio__.write("SIH {}\r".format(val))
-		self.__sio__.flush()
-		return self.__sio__.readline()
-
-	def set_integral_cool_band_setting(self, val):
-		self.__sio__.write("SIC {}\r".format(val))
-		self.__sio__.flush()
-		return self.__sio__.readline()
-
-	def set_derivative_heat_band_setting(self, val):
-		self.__sio__.write("SDH {}\r".format(val))
-		self.__sio__.flush()
-		return self.__sio__.readline()
-
-	def set_derivative_cool_band_setting(self, val):
-		self.__sio__.write("SDC {}\r".format(val))
-		self.__sio__.flush()
-		return self.__sio__.readline()
-
-	def set_temperature_resolution(self, val):
-		self.__sio__.write("STR {}\r".format(val))
-		self.__sio__.flush()
-		return self.__sio__.readline()
-
-	def set_temperature_units(self, val):
-		self.__sio__.write("STU {}\r".format(val))
-		self.__sio__.flush()
-		return self.__sio__.readline()
-
-	def set_unit_on_status(self, val):
-		self.__sio__.write("SO {}\r".format(val))
-		self.__sio__.flush()
-		return self.__sio__.readline()
-
-	def set_external_probe_on_status(self, val):
-		self.__sio__.write("SE {}\r".format(val))
-		self.__sio__.flush()
-		return self.__sio__.readline()
-
-	def set_auto_restart_enabled(self, val):
-		self.__sio__.write("SAR {}\r".format(val))
-		self.__sio__.flush()
-		return self.__sio__.readline()
-
-	def set_energy_saving_mode(self, val):
-		self.__sio__.write("SEN {}\r".format(val))
-		self.__sio__.flush()
-		return self.__sio__.readline()
-
-	def set_pump_speed(self, val):
-		self.__sio__.write("SPS {}\r".format(val))
-		self.__sio__.flush()
-		return self.__sio__.readline()
-		
-	"""
-	## READ COMMANDS ##
-	Units are stripped from the hardware return. See the manual for units,
-	or in case of temperature, query with read_temperature_units().
-	"""
-
-	def read_firmware_checksum(self):
-		self.__sio__.write("RSUM\r").encode()
-		self.__sio__.flush()
-		return self.__sio__.readline()
-
-	def read_temperature_internal(self):
-		self.__sio__.write("RT\r").encode()
-		return str2float(self.__sio__.readline())
-
-	def read_temperature_external(self):
-		self.__sio__.write("RT2\r").encode()
-		return str2float(self.__sio__.readline())
-
-	def read_displayed_setpoint(self):
-		self.__sio__.write("RS\r").encode()
-		return str2float(self.__sio__.readline())
-
-	def read_setpoint_x(self):
-		self.__sio__.write("RSX\r").encode()
-		return str2float(self.__sio__.readline())
-
-	def read_high_temperature_fault(self):
-		self.__sio__.write("RHTF\r").encode()
-		return str2float(self.__sio__.readline())
-
-	def read_high_temperature_warn(self):
-		self.__sio__.write("RHTW\r").encode()
-		return str2float(self.__sio__.readline())
-
-	def read_low_temperature_fault(self):
-		self.__sio__.write("RLTF\r").encode()
-		return str2float(self.__sio__.readline())
-
-	def read_low_temperature_warn(self):
-		self.__sio__.write("RLTW\r").encode()
-		return str2float(self.__sio__.readline())
-
-	def read_proportional_heat_band_setting(self):
-		self.__sio__.write("RPH\r").encode()
-		return str2float(self.__sio__.readline())
-
-	def read_proportional_cool_band_setting(self):
-		self.__sio__.write("RPC\r").encode()
-		return str2float(self.__sio__.readline())
-
-	def read_integral_heat_band_setting(self):
-		self.__sio__.write("RIH\r").encode()
-		return str2float(self.__sio__.readline())
-
-	def read_integral_cool_band_setting(self):
-		self.__sio__.write("RIC\r").encode()
-		return str2float(self.__sio__.readline())
-
-	def read_derivative_heat_band_setting(self):
-		self.__sio__.write("RDH\r").encode()
-		return str2float(self.__sio__.readline())
-
-	def read_derivative_cool_band_setting(self):
-		self.__sio__.write("RDC\r").encode()
-		return str2float(self.__sio__.readline())
-
-	def read_temperature_precision(self):
-		self.__sio__.write("RTP\r").encode()
-		self.__sio__.flush()
-		return self.__sio__.readline()
-
-	def read_temperature_units(self):
-		self.__sio__.write("RTU\r").encode()
-		self.__sio__.flush()
-		return self.__sio__.readline()
-
-	def read_unit_on(self):
-		self.__sio__.write("RO\r").encode()
-		self.__sio__.flush()
-		return self.__sio__.readline()
-
-	def read_external_probe_enabled(self):
-		self.__sio__.write("RE\r").encode()
-		self.__sio__.flush()
-		return self.__sio__.readline()
-
-	def read_auto_restart_enabled(self):
-		self.__sio__.write("RAR\r").encode()
-		self.__sio__.flush()
-		return self.__sio__.readline()
-
-	def read_energy_saving_mode(self):
-		self.__sio__.write("REN\r").encode()
-		self.__sio__.flush()
-		return self.__sio__.readline()
-
-	def read_time(self):
-		self.__sio__.write("RCK\r").encode()
-		self.__sio__.flush()
-		return self.__sio__.readline()
-
-	def read_date(self):
-		self.__sio__.write("RDT\r").encode()
-		self.__sio__.flush()
-		return self.__sio__.readline()
-
-	def read_date_format(self):
-		self.__sio__.write("RDF\r").encode()
-		self.__sio__.flush()
-		return self.__sio__.readline()
-
-	def read_firmware_version(self):
-		self.__sio__.write("RVER\r").encode()
-		self.__sio__.flush()
-		return self.__sio__.readline()
+    def __init__(self, port, baud=9600, timeout=1, parity=serial.PARITY_NONE, rtscts=False):
+        """
+        Open serial interface, return fault status.
+        The serial handle becomes a public instance object.
+        """
+        self.__ser__ = serial.Serial(port=port, baudrate=baud, timeout=timeout, parity=parity)
+        self.__ser__.flush()
+        
+    def disconnect(self):
+        "Close serial interface."
+        self.__ser__.reset_input_buffer()
+        self.__ser__.reset_output_buffer()
+        self.__ser__.close()
+        
+    def rcvd_ok(self):
+        "Readline and if OK code comes in, return True; else, False."
+        return self.__ser__.read_until('\r') == b'OK\r'
+        
+    # register setters/getters
+    ## these are for static values that are changeable only by user command
+    ## i.e. not dynamic measured values
+            
+    def on(self, status=None):
+        "Get or set on-status of the circulator."
+        if status is None:
+            # get status
+            self.__ser__.write("RO\r".encode())
+            self.__ser__.flush()
+            return(str2bool(self.__ser__.read_until('\r')))
+        elif status:
+            # start circulator
+            self.__ser__.write("SO 1\r".encode())
+            self.__ser__.flush()
+            return(self.rcvd_ok())
+        else:
+            # stop circulator
+            self.__ser__.write("SO 0\r".encode())
+            self.__ser__.flush()
+            return(self.rcvd_ok())
+            
+    def pump_speed(self, speed=None):
+        "Get or set pump speed (L/H)."
+        if speed is None:
+            # get speed
+            self.__ser__.write("RPS\r".encode())
+            self.__ser__.flush()
+            return(self.__ser__.read_until('\r').decode().strip())
+        else:
+            # set speed low or high
+            self.__ser__.write("SPS {}\r".format(speed).encode())
+            self.__ser__.flush()
+            return(self.rcvd_ok())
+            
+    def probe_ext(self, status=None):
+        "Get or set status of external probe (used for control, or not?)"
+        if status is None:
+            # get status
+            self.__ser__.write("RE\r".encode())
+            self.__ser__.flush()
+            return(str2bool(self.__ser__.read_until('\r')))
+        elif status:
+            # switch to external probe
+            self.__ser__.write("SE 1\r".encode())
+            self.__ser__.flush()
+            return(self.rcvd_ok())
+        else:
+            # switch to internal probe
+            self.__ser__.write("SE 0\r".encode())
+            self.__ser__.flush()
+            return(self.rcvd_ok())
+        
+    def temp_set(self, temp=None, x=""):
+        "Set or get temperature setpoint x, or if x not specified, displayed setpoint."
+        if not temp:
+            # get setpoint
+            self.__ser__.write("RS{}\r".format(x).encode())
+            self.__ser__.flush()
+            return(str2float(self.__ser__.read_until('\r')))
+        else:
+            # set setpoint
+            self.__ser__.write("SS{} {}\r".format(x, temp).encode())
+            self.__ser__.flush()
+            return(self.rcvd_ok())
+            
+    def warn_lo(self, limit=None):
+        "Set or get low-temp warning limit."
+        if not limit:
+            # get limit
+            self.__ser__.write("RLTW\r".encode())
+            self.__ser__.flush()
+            return(str2float(self.__ser__.read_until('\r')))
+        else:
+            # set limit
+            self.__ser__.write("SLTW {}\r".format(limit).encode())
+            self.__ser__.flush()
+            return(self.rcvd_ok())
+            
+    def fault_lo(self, limit=None):
+        "Set or get low-temp fault limit."
+        if limit is None:
+            # get limit
+            self.__ser__.write("RLTF\r".encode())
+            self.__ser__.flush()
+            return(str2float(self.__ser__.read_until('\r')))
+        else:
+            # set limit
+            self.__ser__.write("SLTF {}\r".format(limit).encode())
+            self.__ser__.flush()
+            return(self.rcvd_ok())
+            
+    def warn_hi(self, limit=None):
+        "Set or get low-temp warning limit."
+        if not limit:
+            # get limit
+            self.__ser__.write("RHTW\r".encode())
+            self.__ser__.flush()
+            return(str2float(self.__ser__.read_until('\r')))
+        else:
+            # set limit
+            self.__ser__.write("SHTW {}\r".format(limit).encode())
+            self.__ser__.flush()
+            return(self.rcvd_ok())
+            
+    def fault_hi(self, limit=None):
+        "Set or get low-temp fault limit."
+        if limit is None:
+            # get limit
+            self.__ser__.write("RHTF\r".encode())
+            self.__ser__.flush()
+            return(str2float(self.__ser__.read_until('\r')))
+        else:
+            # set limit
+            self.__ser__.write("SHTF {}\r".format(limit).encode())
+            self.__ser__.flush()
+            return(self.rcvd_ok())
+            
+    def temp_prec(self, prec=None):
+        "Get or set temperature precision (# decimal places)."
+        if prec is None:
+            # get precision
+            self.__ser__.write("RTP\r".encode())
+            self.__ser__.flush()
+            return(str2float(self.__ser__.read_until('\r')))
+        else:
+            # set precision
+            self.__ser__.write("STR {}\r".format(prec).encode())
+            self.__ser__.flush()
+            return(self.rcvd_ok())
+            
+    def pid(self, drive, p=None, i=None, d=None):
+        """
+        Get or set PID bandwidths for heater or chiller drive (H/C).
+        p in %
+        i in repeats/min
+        d in min
+        """
+        if p is None:
+            # get proportional band
+            self.__ser__.write("RP{}\r".format(drive).encode())
+            self.__ser__.flush()
+            p = str2float(self.__ser__.read_until('\r'))
+        else:
+            # set proportional band
+            self.__ser__.write("SP{} {}\r".format(drive, p).encode())
+            self.__ser__.flush()
+            p = self.rcvd_ok()
+        if i is None:
+            # get integral band
+            self.__ser__.write("RI{}\r".format(drive).encode())
+            self.__ser__.flush()
+            i = str2float(self.__ser__.read_until('\r'))
+        else:
+            # set integral band
+            self.__ser__.write("SI{} {}\r".format(drive, i).encode())
+            self.__ser__.flush()
+            i = self.rcvd_ok()
+        if d is None:
+            # get derivative band
+            self.__ser__.write("RD{}\r".format(drive).encode())
+            self.__ser__.flush()
+            d = str2float(self.__ser__.read_until('\r'))
+        else:
+            # set derivative band
+            self.__ser__.write("SD{} {}\r".format(drive, d).encode())
+            self.__ser__.flush()
+            d = self.rcvd_ok()
+        return((p, i, d))
+                    
+    def units(self, unit=None):
+        "Get or set temperature unit (C/F/K)."
+        if not unit:
+            # get unit
+            self.__ser__.write("RTU\r".encode())
+            self.__ser__.flush()
+            return(self.__ser__.read_until('\r').decode().strip())
+        else:
+            # set unit
+            self.__ser__.write("STU {}\r".format(unit).encode())
+            self.__ser__.flush()
+            return(self.rcvd_ok())
+    
+    # data requests
+    ## for data measured in real time
+            
+    def temp_get_int(self):
+        "Get current temp at internal sensor."
+        self.__ser__.write("RT\r".encode())
+        self.__ser__.flush()
+        return(str2float(self.__ser__.read_until('\r')))
+        
+    def temp_get_ext(self):
+        "Get current temp at external sensor."
+        self.__ser__.write("RT2\r".encode())
+        self.__ser__.flush()
+        return(str2float(self.__ser__.read_until('\r')))
+            
