@@ -34,7 +34,8 @@ ranges = {
 # calculate cartesian product of these ranges
 states = pd.DataFrame(list(product_dict(**ranges)))
 # sort for efficient transitions
-states = states.sort_values(by=["T_set", "Cd", "Hd", "Ci", "Hi"], ascending=[False, True, True, True, True]).reset_index(drop=True)
+# parameters on the right change faster
+states = states.sort_values(by=["T_set", "Ci", "Hi", "Cd", "Hd"], ascending=[False, True, True, True, True]).reset_index(drop=True)
 
 print(states)
 
