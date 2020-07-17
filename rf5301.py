@@ -48,20 +48,39 @@ def hex2ascii(hex):
 
     return ascii_string
     
-def calc_checksum(msg):
-    return 
+def str2shim(msg):
+	"Enframe a message for the spec (bytelist), return a bytelist."
+	cmd = [0x02] + msg + [0x83]
+	return cmd + [shim_checksum(cmd)]
+    
+def shim_checksum(msg):
+	dict_stopgap = {
+		b'\x02W\xcd\x83' : 0x19
+	}
+    return dict_stopgap[serial.to_bytes(msg)]
     
 class RF5301:
-    def __init__(self, port, baud=9600, timeout=1, source=1, dest=1):
+    def __init__(self, port, baud=9600, timeout=1):
         """
         Open serial interface, set remote status and baudrate.
         The serial handle becomes a public instance object.
         """
         self.__ser__ = serial.Serial(port=port, baudrate=baud, timeout=timeout)
-        self.__source__ = source
-        self.__dest__ = dest
         
     ## Shimadzu MODBUS protocol methods
+	def meas(self, status):
+    	# start or stop returning fluorescence data
+    	if status:
+    		# send ENQ
+    		self.__ser__.write(serial.to_bytes([0x85]))
+    		# wait for ACK
+			while self.__ser__.read(1) != 0x86:
+				pass
+			# wait for ENQ
+			while self.__ser__.read(1) != 0x85:
+				pass
+			# turn on
+			self.__ser__.write(str2shim([0x57, 0xcd]))
     
     # wait the specified num of character times
     def wait_bytes(self, num_bytes):
@@ -73,7 +92,6 @@ class RF5301:
             self.__ser__.write(serial.to_bytes([0x86])) #DTE ACK
         self.__ser__.write(serial.to_bytes([0x02])) #DTE STX
         #self.wait_bytes(3.5)
-        
         
     # send EOT and clear the buffer
     def end_xmit(self, timeout = 4):
