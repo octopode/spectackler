@@ -24,7 +24,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from sys import stdin
 from time import sleep
-from binascii import b2a_uu
+import binascii
 
 "/dev/cu.usbserial-FTV5C58R0"
     
@@ -41,23 +41,46 @@ def hex2dec(hex):
 def ascii2hex(mystr):
     return ''.join([("\\x" + hex(ord(ch))[2:]) for ch in list(mystr)])
     
-def hex2ascii(hex):
-    hex_string = hex[2:]
-    bytes_object = bytes.fromhex(hex_string)
-    ascii_string = bytes_object.decode("ASCII")
-
-    return ascii_string
+#def hex2ascii(hex):
+#    hex_string = hex[2:]
+#    bytes_object = bytes.fromhex(hex_string)
+#    ascii_string = bytes_object.decode("ASCII")
+#
+#    return ascii_string
+    
+def hex2ascii(bytelist):
+    "Decode byte list to UTF-8, performing modulo"
+    return serial.to_bytes([byte%128 for byte in bytelist])
     
 def str2shim(msg):
-	"Enframe a message for the spec (bytelist), return a bytelist."
-	cmd = [0x02] + msg + [0x83]
-	return cmd + [shim_checksum(cmd)]
+    "Enframe a message for the spec (bytelist), return a bytelist."
+    cmd = [0x02] + msg + [0x83]
+    return cmd + [shim_checksum(cmd)]
+    
+def shim2str(bytestr):
+    "Take bytestring from the spec, checksum and strip it."
+    #NTS 20200719: True is temporary here!
+    if True or bytestr[-1] == shim_checksum(bytestr[:-1]):
+        # lop off first and last bytes (0x02, 0x83)
+        return hex2ascii(bytestr[:-1]).decode().strip()[1:-1]
+    else:
+        # if checksum fails
+        return None
     
 def shim_checksum(msg):
-	dict_stopgap = {
-		b'\x02W\xcd\x83' : 0x19
-	}
+    dict_stopgap = {
+        b'\x02W\xcd\x83'    : 0x19,
+        b'\x02#\x83'        : 0x20,
+        b'\x02E\x83'        : 0x46,
+        b'\x02\xd6\x83'     : 0xd5,
+        b'\x02CR\x83'       : 0x92,
+        b'\x02C\x83'        : 0x40,
+        b'\x02I\x83'        : 0x4a,
+    }
     return dict_stopgap[serial.to_bytes(msg)]
+    
+def remove_prefix(text, prefix):
+    return text[text.startswith(prefix) and len(prefix):]
     
 class RF5301:
     def __init__(self, port, baud=9600, timeout=1):
@@ -66,21 +89,148 @@ class RF5301:
         The serial handle becomes a public instance object.
         """
         self.__ser__ = serial.Serial(port=port, baudrate=baud, timeout=timeout)
+        self.__ser__.flush()
         
+        ## initialization routine
+        #init = []
+        #for query in [[0x23], [0x45], [0xd6], [0x45], [0x43, 0x52]]:
+        #    init.append(self.query(query))
+        #print(init)
+    
+    def post(self, status=False):
+        "Perform full Power On Self-Test. False checks whether POST already run, True runs it."
+        if not status:
+            msg = [0x23]
+            # reply of 1 means the spec was just turned on
+            # return of True means POST already performed
+            return not int(remove_prefix(self.query(msg), '0'+hex2ascii(msg).decode()))
+        else:
+            post_dict = {
+                "mem_chk" : self.mem_chk(),
+                "ser_num" : self.ser_num(),
+                "xen_hrs" : self.xen_hrs()
+            }
+            #post_dict.append(self.opt_chk())
+            return post_dict
+        
+    def ser_num(self):
+        "Get instrument SN"
+        msg = [0xd6]
+        # strip 0 and the query from beginning of a successful reply
+        return remove_prefix(self.query(msg), '0'+hex2ascii(msg).decode())
+        
+    def rom_ver(self):
+        "Get instrument ROM version"
+        msg = [0x43, 0x52]
+        # strip 0 and the query from beginning of a successful reply
+        return float(remove_prefix(self.query(msg), '0'+hex2ascii(msg).decode()))
+        
+    def mem_chk(self):
+        "self-check ROM, RAM, EEPROM"
+        msg = [0x43]
+        if remove_prefix(self.query(msg), '0'+hex2ascii(msg).decode()) == "R1":
+            return True
+        else:
+            return False
+            
+    def opt_chk(self):
+        "Optical bench check: ex/em slits, monochromators, BL stability"
+        
+        
+    def xen_hrs(self):
+        "Get hours on the Xe lamp. RETURNS 1 if optics not yet checked"
+        msg = [0x45]
+        return hex2dec(remove_prefix(self.query(msg), '0'+hex2ascii(msg).decode()))
+        
+    # SOFTWARE HANDSHAKING METHODS
+    def query(self, msg):
+        "Enframe query (presently bytelist), send to instrument, return reply"
+        self.__ser__.flush()
+        # two handshakes?
+        for i in range(2):
+            self.etx(True)
+            self.enq(True)
+            self.ack(False)
+        # now send the command
+        self.__ser__.write(str2shim(msg))
+        # wait for ack
+        self.ack(False)
+        # send ETX
+        self.etx(True)
+        # wait for ACK
+        self.enq(False)
+        # send ACK
+        self.ack(True)
+        # init block list
+        blocks = []
+        # read first data byte
+        byte = self.__ser__.read(1)
+        # read bytes
+        while byte != b'\x85':
+            # init block
+            block = b''
+            while byte != b'\x97':
+                # concat prev byte to block
+                block += byte
+                byte = self.__ser__.read(1)
+                if byte == b'\x85':
+                    # if there aren't any blocks
+                    break
+            # ACK receipt of block
+            blocks.append(block)
+            self.ack(True)
+        ## get reply to the final ENQ
+        #reply = self.__ser__.read_until('\x85')
+        ## ACK receipt
+        #self.ack(True)
+        # wait for ETX to clear the line
+        self.etx(False)
+        # return
+        #return shim2str(reply)
+        return [shim2str(block) for block in blocks]
+    
+    # senders/receivers
+    # passing True sends the signal, False waits to receive it
+    def signal(self, send, sig):
+        if send:
+            self.__ser__.write(sig)
+        else:
+            self.wait_for(sig)
+    
+    def wait_for(self, sig):
+        while self.__ser__.read(1) != sig:
+            pass
+    
+    def ack(self, send=True):
+        "Send or recieve ACK"
+        self.signal(send, b'\x86')
+                        
+    def enq(self, send=True):
+        "Send or recieve ENQ"
+        self.signal(send, b'\x85')
+            
+    def etx(self, send=True):
+        "Send or recieve ETX"
+        self.signal(send, b'\x04')
+        
+    def etb(self, send=True):
+        "Send or recieve ETB"
+        self.signal(send, b'\x97')
+    
     ## Shimadzu MODBUS protocol methods
-	def meas(self, status):
-    	# start or stop returning fluorescence data
-    	if status:
-    		# send ENQ
-    		self.__ser__.write(serial.to_bytes([0x85]))
-    		# wait for ACK
-			while self.__ser__.read(1) != 0x86:
-				pass
-			# wait for ENQ
-			while self.__ser__.read(1) != 0x85:
-				pass
-			# turn on
-			self.__ser__.write(str2shim([0x57, 0xcd]))
+    def meas(self, status):
+        # start or stop returning fluorescence data
+        if status:
+            # send ENQ
+            self.__ser__.write(serial.to_bytes([0x85]))
+            # wait for ACK
+            while self.__ser__.read(1) != 0x86:
+                pass
+            # wait for ENQ
+            while self.__ser__.read(1) != 0x85:
+                pass
+            # turn on
+            self.__ser__.write(str2shim([0x57, 0xcd]))
     
     # wait the specified num of character times
     def wait_bytes(self, num_bytes):
