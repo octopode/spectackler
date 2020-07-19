@@ -25,8 +25,6 @@ import matplotlib.pyplot as plt
 from sys import stdin
 from time import sleep
 import binascii
-
-"/dev/cu.usbserial-FTV5C58R0"
     
 def bitstring_to_bytes(s):
     return int(s, 2).to_bytes(len(s) // 8, byteorder='big')
@@ -113,7 +111,10 @@ class RF5301:
         The serial handle becomes a public instance object.
         """
         self.__ser__ = serial.Serial(port=port, baudrate=baud, timeout=timeout)
-        self.__ser__.flush()
+        
+        # clear the line
+        while(self.__ser__.read(1) == b'\x85'):
+        	self.ack(True)
         
         # has POST been run?
         if not self.post():
@@ -192,7 +193,7 @@ class RF5301:
             msg.append(0x31)
         else:
             msg.append(0x32)
-        return self.query(msg)
+        return not int(self.query(msg))
         
     def ex_wl(self, wl=None):
         "Get/set excitation wavelength"
@@ -244,18 +245,18 @@ class RF5301:
         msg = [0x52]
         # there's a NUL between prefix and data!! Why is beyond me at present.
         # it's a pad. Should I replace it with 0 (0x30)?
-        hex_str = remove_prefix(self.query(msg), '0'+hex2ascii(msg).decode()+'\x00')
-        return hex2dec(hex_str)/1000
+        #print(self.query(msg))
+        #hex_str = remove_prefix(self.query(msg), '0'+hex2ascii(msg).decode()+'\x00')
+        # remove message and padding
+        return hex2dec(self.query(msg)[-6:])/1000
         
     # SOFTWARE HANDSHAKING METHODS
     def query(self, msg):
         "Enframe query (presently bytelist), send to instrument, return reply"
         self.__ser__.flush()
-        # two handshakes?
-        for i in range(2):
-            self.etx(True)
-            self.enq(True)
-            self.ack(False)
+        # hello?
+        self.enq(True)
+        self.ack(False)
         # now send the command
         self.__ser__.write(str2shim(msg))
         # wait for ack
@@ -293,7 +294,6 @@ class RF5301:
                 block += self.__ser__.read(1)
                 # ACK receipt
                 self.ack(True)
-                # 'cause f**k null padding
                 return block
     
     # signal senders/receivers

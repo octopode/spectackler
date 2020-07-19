@@ -61,10 +61,10 @@ class ISCOController:
         self.remote()
         
     def disconnect(self):
-    	"Close serial interface."
-    	self.__ser__.reset_input_buffer()
-    	self.__ser__.reset_output_buffer()
-    	self.__ser__.close()
+        "Close serial interface."
+        self.__ser__.reset_input_buffer()
+        self.__ser__.reset_output_buffer()
+        self.__ser__.close()
         
     def rcvd_ok(self):
         "Readline and if OK code comes in, return True; else, False."
@@ -125,6 +125,22 @@ class ISCOController:
     def clear(self):
         self.__ser__.write(str2dasnet("CLEAR", self.__source__, self.__dest__))
         return self.rcvd_ok()
+        
+    def digital(self, pins=[], bits=[]):
+        "Get/set digital outputs"
+        # robust to set single or multiple pins
+        if type(pins) != list: pins = [pins]
+        if type(bits) != list: bits = [bits]
+        self.__ser__.write(str2dasnet("DIGITAL", self.__source__, self.__dest__))
+        status = [True if x == 'L' else False for x in self.read_vals()["DIGITAL"]]
+        if pins == []:
+            return status
+        else:
+            for pin, bit in zip(pins, bits):
+                status[pin] = bit
+            sendcode = ''.join(['L' if x else 'H' for x in status])
+            self.__ser__.write(str2dasnet("DIGITAL={}".format(sendcode), self.__source__, self.__dest__))
+            return self.rcvd_ok()
     
     # Mode setters don't yet work 20200619
     def mode(self, mode, pump='A'):
@@ -270,15 +286,19 @@ class ISCOController:
     def vol_get(self, pump='A'):
         "Get volume remaining in cylinder."
         self.__ser__.write(str2dasnet("VOL{}".format(pump), self.__source__, self.__dest__))
-        return self.read_vals()["VOL{}".format(pump)]
+        try:
+        	return self.read_vals()["VOL{}".format(pump)]
+        except:
+        	#e.g. if the pump is busy
+        	return False
         
     # higher-level routines
     ## employ methods above
     
     def pause(self, pump='A'):
-    	"Stop pump without changing constant pressure setpoint."
-    	setpt_press = self.press_set(pump=pump)
-    	return all((self.clear(), self.press_set(pressure=setpt_press, pump=pump)))
+        "Stop pump without changing constant pressure setpoint."
+        setpt_press = self.press_set(pump=pump)
+        return all((self.clear(), self.press_set(pressure=setpt_press, pump=pump)))
     
     def tune_maxflow(self, pump='A'):
         """
@@ -290,21 +310,21 @@ class ISCOController:
         
     #TEMPORARY
     def const_press_alarm(self, press_set, max_leak_rate):
-    	"Bring pump to constant pressure, then alarm and stop if flowrate exceeds threshold."
-    	
-    	if self.press_set(pressure=press_set):
-    		self.run()
-    		press_curr = self.press_get()
-    		while press_curr < press_set:
-    			press_curr = self.press_get()
-    			print(press_curr)
-    		sleep(10)
-    		flow_curr = self.flow_get()
-    		while flow_curr <= max_leak_rate:
-    			flow_curr = self.flow_get()
-    			print(flow_curr)
-    		self.clear()
-    		return("LEAK!")
-    	else:
-    		return(1)
-    	
+        "Bring pump to constant pressure, then alarm and stop if flowrate exceeds threshold."
+        
+        if self.press_set(pressure=press_set):
+            self.run()
+            press_curr = self.press_get()
+            while press_curr < press_set:
+                press_curr = self.press_get()
+                print(press_curr)
+            sleep(10)
+            flow_curr = self.flow_get()
+            while flow_curr <= max_leak_rate:
+                flow_curr = self.flow_get()
+                print(flow_curr)
+            self.clear()
+            return("LEAK!")
+        else:
+            return(1)
+        
