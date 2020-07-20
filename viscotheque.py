@@ -27,7 +27,7 @@ import time
 import itertools
 import numpy as np
 import pandas as pd
-import multiprocessing as mp
+import subprocess
 from math import isclose
 import isotemp6200
 import isco260D
@@ -41,24 +41,25 @@ def product_dict(**kwargs):
         yield dict(zip(keys, instance))
     
 def poll(dev, meas):
-    "Poll the passed device, put result in queue"
-    devclass = dev.__class__.__name__
-    if devclass == "IsotempController":
-        vals_dict = {
-            "T_int" : dev.temp_get_int(),
-            "T_ext" : dev.temp_get_ext()
-        }
-    elif devclass == "ISCOController":
-        vals_dict = {
-            "vol"   : dev.vol_get(),
-            "P_act" : dev.press_get(),
-            "air"   : dev.digital(0)
-        }
-    elif devclass == "RF5301":
+    "Poll the passed device at its own pace"
+    While True:
+        devclass = dev.__class__.__name__
+        if devclass == "IsotempController":
             vals_dict = {
-            "intensity" : dev.fluor_get()
-        }
-    meas.put(vals_dict)
+                "T_int" : dev.temp_get_int(),
+                "T_ext" : dev.temp_get_ext()
+            }
+        elif devclass == "ISCOController":
+            vals_dict = {
+                "vol"   : dev.vol_get(),
+                "P_act" : dev.press_get(),
+                "air"   : dev.digital(0)
+            }
+        elif devclass == "RF5301":
+                vals_dict = {
+                "intensity" : dev.fluor_get()
+            }
+        meas.put(vals_dict)
         
 def parse_args(argv):
     "Parse command line arguments. This script will also take a pre-generated TSV from stdin."
