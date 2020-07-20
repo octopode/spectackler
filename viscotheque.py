@@ -27,6 +27,7 @@ import time
 import itertools
 import numpy as np
 import pandas as pd
+import multiprocessing as mp
 from math import isclose
 import isotemp6200
 import isco260D
@@ -38,6 +39,26 @@ def product_dict(**kwargs):
     vals = kwargs.values()
     for instance in itertools.product(*vals):
         yield dict(zip(keys, instance))
+    
+def poll(dev, meas):
+    "Poll the passed device, put result in queue"
+    devclass = dev.__class__.__name__
+    if devclass == "IsotempController":
+        vals_dict = {
+            "T_int" : dev.temp_get_int(),
+            "T_ext" : dev.temp_get_ext()
+        }
+    elif devclass == "ISCOController":
+        vals_dict = {
+            "vol"   : dev.vol_get(),
+            "P_act" : dev.press_get(),
+            "air"   : dev.digital(0)
+        }
+    elif devclass == "RF5301":
+            vals_dict = {
+            "intensity" : dev.fluor_get()
+        }
+    meas.put(vals_dict)
         
 def parse_args(argv):
     "Parse command line arguments. This script will also take a pre-generated TSV from stdin."
@@ -129,11 +150,15 @@ def main(args, stdin, stdout, stderr):
             # init instruments
             print("connecting...", file=stderr)
             bath = isotemp6200.IsotempController(port=args['port_bath'])
-            print("√ temperature controller", file=stderr)
+            print("temperature controller √", file=stderr)
             pump = isco260D.ISCOController(port=args['port_pump'])
-            print("√ pressure controller", file=stderr)
+            print("pressure controller    √", file=stderr)
             spec = rf5301.RF5301(port=args['port_spec'])
-            print("√ fluorospectrometer", file=stderr)
+            print("fluorospectrometer     √", file=stderr)
+            
+            # start parallel data acquisition queue
+            meas = mp.Queue()
+            procs = [mp.Process(target=poll, args=(dev, meas)) for dev in (bath, pump, spec)]
             
             # start bath circulator
             while not bath.on():
@@ -237,6 +262,8 @@ def main(args, stdin, stdout, stderr):
                 while True:
                 
                     time_cycle = time.time()
+                    
+                    # DATA FIRST
                 
                     # SAFETY FIRST!
                     # check for pressure system leak
