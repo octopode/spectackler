@@ -5,6 +5,7 @@ initialize Isotemp water bath, then provide user with an interactive console for
 """
 
 import isotemp6200 as isotemp
+import traceback
 
 bath = isotemp.IsotempController(port="/dev/cu.usbserial-AL01M1X9")
 
@@ -14,4 +15,5 @@ while True:
 		ret = eval("bath.{}".format(cmd))
 		print(ret)
 	except:
+		traceback.print_exc()
 		bath.disconnect()

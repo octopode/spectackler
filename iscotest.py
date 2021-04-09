@@ -6,6 +6,7 @@ initialize ISCO pump, then provide user with an interactive console for debuggin
 
 import isco260D as isco
 from time import sleep
+import traceback
 
 def gg2psi(gg_str):
     "get PSI value from G& get all status string"
@@ -22,4 +23,5 @@ while True:
         ret = eval("pump.{}".format(cmd))
         print(ret)
     except:
+        traceback.print_exc()
         pump.disconnect()

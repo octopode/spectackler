@@ -65,7 +65,7 @@ def parse_args(argv):
     return argparse.Namespace(**args_dict)
     
 def main(args, stdin, stdout, stderr, aux=None):
-    "Run a temperature/parameter scan and store output to a file. Aux is query function for an auxiliary sensor."
+    "Run a temperature/parameter scan and store output to a file. Aux is query method for an auxiliary sensor."
     
     # if args are passed as namespace, convert it to dict
     try:
@@ -93,14 +93,15 @@ def main(args, stdin, stdout, stderr, aux=None):
         states = pd.DataFrame(list(product_dict(**ranges)))
         # sort for efficient transitions
         # parameters on the right change faster
-        states = states.sort_values(by=args['scan_rank'], ascending=args['scan_asc']).reset_index(drop=True)
+        #NTS 20200714 .iloc[::-1] reversal is #temporary, idk why ascending= doesn't work!
+        states = states.sort_values(by=args['scan_rank'], ascending=args['scan_asc']).reset_index(drop=True).iloc[::-1]
         # print the generated table to stdout for records
         states.to_csv(stdout, sep='\t')
     
     ## run the experiment
     
-    # open output file
-    with open(args['file_log'], 'w') as hand_log:
+    # open output file, do not overwrite!
+    with open(args['file_log'], 'x') as hand_log:
     
         # compose and write header
         list_head = ["clock", "watch", "T_int", "T_ext"] + list(ranges.keys())

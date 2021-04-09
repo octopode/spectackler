@@ -29,8 +29,20 @@ def str2float(bytestring):
 def str2bool(bytestring):
     "Convert b'0'/b'1' to Boolean. b'' also returns False."
     return bool(int('0'+bytestring.decode().strip()))
+    
+class TCal:
+    "Class for digital linear calibration"
+    def __init__(self, slope, xcept):
+        "Slope and intercept convert from reference to actual"
+        self.__slope__ = slope
+        self.__xcept__ = xcept
+    reset = __init__ # alias
+    def ref2act(self, temp_ref):
+        return ((temp_ref * self.__slope__) + self.__xcept__)
+    def act2ref(self, temp_act):
+        return ((temp_act - self.__xcept__) / self.__slope__)
 
-class IsotempController:
+class IsotempController(TCal):
     def __init__(self, port, baud=9600, timeout=1, parity=serial.PARITY_NONE, rtscts=False):
         """
         Open serial interface, return fault status.
@@ -38,6 +50,10 @@ class IsotempController:
         """
         self.__ser__ = serial.Serial(port=port, baudrate=baud, timeout=timeout, parity=parity)
         self.__ser__.flush()
+        # initialize calibrations at unity
+        # these can be adjusted by bath.cal_ext.reset(slope, xcept)
+        self.cal_int = TCal(1, 0)
+        self.cal_ext = TCal(1, 0)
         
     def disconnect(self):
         "Close serial interface."
@@ -247,3 +263,9 @@ class IsotempController:
         self.__ser__.flush()
         return(str2float(self.__ser__.read_until('\r')))
             
+    def temp_get_act(self, ext=None):
+        "Get calibrated temp, by default from active sensor."
+        # if sensor not specified, use the active one
+        if ext is None: ext = self.probe_ext()
+        if not ext: return(cal_int.ref2act(self.temp_get_int()))
+        else: return(cal_ext.ref2act(self.temp_get_ext()))

@@ -19,6 +19,7 @@ GNU General Public License for more details.
 """
 
 import serial
+import threading
 from time import sleep
 
 def dasnet_checksum(cmd):
@@ -56,91 +57,99 @@ class ISCOController:
         The serial handle becomes a public instance object.
         """
         self.__ser__ = serial.Serial(port=port, baudrate=baud, timeout=timeout)
+        self.lock = threading.RLock()
         self.__source__ = source
         self.__dest__ = dest
         self.remote()
         
     def disconnect(self):
         "Close serial interface."
-        self.__ser__.reset_input_buffer()
-        self.__ser__.reset_output_buffer()
-        self.__ser__.close()
+        with self.lock:
+            self.__ser__.close()
         
     def rcvd_ok(self):
         "Readline and if OK code comes in, return True; else, False."
-        return self.__ser__.read_until('\r') == b'R 8E\r'
+        with self.lock:
+            return self.__ser__.read_until('\r') == b'R 8E\r'
         
     def read_vals(self):
         "Readline and extract values from DASNET frame."
-        # split individual messages
-        msg_list = dasnet2str(self.__ser__.read_until('\r')).split(',')
-        msg_pairs = [msg.split('=') for msg in msg_list]
-        # strip whitespace
-        msg_pairs = [[i.strip() for i in pair] for pair in msg_pairs]
-        msg_dict = dict(msg_pairs)
-        # try to convert values to floats
-        for key, val in msg_dict.items():
-            try:
-                msg_dict[key] = float(val)
-            except ValueError:
-                pass
-        return msg_dict
-
-        # try to convert values to floats
-        for i, j in enumerate(msg_vals):
-            try:
-                msg_vals[i] = float(j)
-            except ValueError:
-                pass
-        return dict(zip(msg_keys, msg_vals))
+        with self.lock:
+            # split individual messages
+            msg = dasnet2str(self.__ser__.read_until('\r'))
+            try: msg_list = msg.split(',')
+            # if nothing comes in
+            except: return None
+            msg_pairs = [msg.split('=') for msg in msg_list]
+            # strip whitespace
+            msg_pairs = [[i.strip() for i in pair] for pair in msg_pairs]
+            msg_dict = dict(msg_pairs)
+            # try to convert values to floats
+            for key, val in msg_dict.items():
+                try:
+                    msg_dict[key] = float(val)
+                except ValueError:
+                    pass
+            return msg_dict
         
     #TEMP?
     def flush(self):
-        self.__ser__.flush()
-        return self.__ser__.read_until('\r')
+        with self.lock:
+            self.__ser__.flush()
+            return self.__ser__.read_until('\r')
         
     # action commands
     ## acknowledged over serial with b'R 8E\r'
         
     def remote(self):
-        self.__ser__.write(str2dasnet("REMOTE", self.__source__, self.__dest__))
-        return self.__ser__.read_until('\r')
+        with self.lock:
+            self.__ser__.write(str2dasnet("REMOTE", self.__source__, self.__dest__))
+            return self.__ser__.read_until('\r')
         
     def local(self):
-        self.__ser__.write(str2dasnet("LOCAL", self.__source__, self.__dest__))
-        return self.__ser__.read_until('\r')
+        with self.lock:
+            self.__ser__.write(str2dasnet("LOCAL", self.__source__, self.__dest__))
+            return self.__ser__.read_until('\r')
             
     def disconnect(self):
-        self.local()
-        self.__ser__.close()
+        with self.lock:
+            self.local()
+            self.__ser__.close()
         
     def run(self):
-        self.__ser__.write(str2dasnet("RUN", self.__source__, self.__dest__))
-        return self.rcvd_ok()
+        with self.lock:
+            self.__ser__.write(str2dasnet("RUN", self.__source__, self.__dest__))
+            return self.rcvd_ok()
         
     def stop(self):
-        self.__ser__.write(str2dasnet("STOPALL", self.__source__, self.__dest__))
-        return self.rcvd_ok()
+        with self.lock:
+            self.__ser__.write(str2dasnet("STOPALL", self.__source__, self.__dest__))
+            return self.rcvd_ok()
         
     def clear(self):
-        self.__ser__.write(str2dasnet("CLEAR", self.__source__, self.__dest__))
-        return self.rcvd_ok()
+        with self.lock:
+            self.__ser__.write(str2dasnet("CLEAR", self.__source__, self.__dest__))
+            return self.rcvd_ok()
         
     def digital(self, pins=[], bits=[]):
         "Get/set digital outputs"
-        # robust to set single or multiple pins
-        if type(pins) != list: pins = [pins]
-        if type(bits) != list: bits = [bits]
-        self.__ser__.write(str2dasnet("DIGITAL", self.__source__, self.__dest__))
-        status = [True if x == 'L' else False for x in self.read_vals()["DIGITAL"]]
-        if pins == []:
-            return status
-        else:
-            for pin, bit in zip(pins, bits):
-                status[pin] = bit
-            sendcode = ''.join(['L' if x else 'H' for x in status])
-            self.__ser__.write(str2dasnet("DIGITAL={}".format(sendcode), self.__source__, self.__dest__))
-            return self.rcvd_ok()
+        with self.lock:
+            # robust to set single or multiple pins
+            if type(pins) != list: pins = [pins]
+            if type(bits) != list: bits = [bits]
+            self.__ser__.write(str2dasnet("DIGITAL", self.__source__, self.__dest__))
+            status = [True if x == 'L' else False for x in self.read_vals()["DIGITAL"]]
+            if bits == []:
+                if len(pins) == 1:
+                    return status[pins[0]]
+                else:
+                    return [status[p] for p in pins]
+            else:
+                for pin, bit in zip(pins, bits):
+                    status[pin] = bit
+                sendcode = ''.join(['L' if x else 'H' for x in status])
+                self.__ser__.write(str2dasnet("DIGITAL={}".format(sendcode), self.__source__, self.__dest__))
+                return self.rcvd_ok()
     
     # Mode setters don't yet work 20200619
     def mode(self, mode, pump='A'):
@@ -165,14 +174,28 @@ class ISCOController:
         return self.__ser__.read_until('\r')
         
     def mode_const_press(self, pump='A'):
-        if pump == 'A': pump = '' # an idiosyncrasy in the protocol
-        self.__ser__.write(str2dasnet("CONST PRESS{}".format(pump)))
-        return self.__ser__.read_until('\r')
+        with self.lock:
+            if pump == 'A': pump = '' # an idiosyncrasy in the protocol
+            self.__ser__.write(str2dasnet("CONST PRESS{}".format(pump)))
+            return self.__ser__.read_until('\r')
+            
+    def mode_const_flow(self, pump='A'):
+        with self.lock:
+            if pump == 'A': pump = '' # an idiosyncrasy in the protocol
+            self.__ser__.write(str2dasnet("CONST FLOW{}".format(pump)))
+            return self.__ser__.read_until('\r')
+            
+    def mode_prgm_grad(self, pump='A'):
+        with self.lock:
+            if pump == 'A': pump = '' # an idiosyncrasy in the protocol
+            self.__ser__.write(str2dasnet("PRGM_GRAD{}".format(pump)))
+            return self.__ser__.read_until('\r')
         
     def zero(self, pump='A'):
         "Zero the pressure sensor."
-        self.__ser__.write(str2dasnet("ZERO{}".format(pump), self.__source__, self.__dest__))
-        return self.__ser__.read_until('\r')
+        with self.lock:
+            self.__ser__.write(str2dasnet("ZERO{}".format(pump), self.__source__, self.__dest__))
+            return self.__ser__.read_until('\r')
         
     # register setters/getters
     ## these are for static values that are changeable only by user command
@@ -183,80 +206,88 @@ class ISCOController:
         Set/get max flowrates for constant pressure (limit) or flow (setpt) mode.
         Sets and gets in tandem by default, use boolean flags to do one or the other.
         """
-        ret = {}
-        if flowrate is None:
-            if setpt:
-                self.__ser__.write(str2dasnet("MAXFLOW{}".format(pump), self.__source__, self.__dest__))
-                ret["setpt"] = dasnet2str(self.__ser__.read_until('\r'))
-            if limit:
-                if pump == 'A': pump = ''
-                self.__ser__.write(str2dasnet("LIMITS{}".format(pump), self.__source__, self.__dest__))
-                ret["limit"] = dasnet2str(self.__ser__.read_until('\r'))
-        else:
-            if setpt:
-                self.__ser__.write(str2dasnet("MAXFLOW{}={}".format(pump, flowrate), self.__source__, self.__dest__))
-                ret["setpt"] = self.rcvd_ok()
-            if limit:
-                self.__ser__.write(str2dasnet("MFLOW{}={}".format(pump, flowrate), self.__source__, self.__dest__))
-                ret["limit"] = self.rcvd_ok()
-        return ret
+        with self.lock:
+            ret = {}
+            if flowrate is None:
+                if setpt:
+                    self.__ser__.write(str2dasnet("MAXFLOW{}".format(pump), self.__source__, self.__dest__))
+                    ret["setpt"] = dasnet2str(self.__ser__.read_until('\r'))
+                if limit:
+                    if pump == 'A': pump = ''
+                    self.__ser__.write(str2dasnet("LIMITS{}".format(pump), self.__source__, self.__dest__))
+                    ret["limit"] = dasnet2str(self.__ser__.read_until('\r'))
+            else:
+                if setpt:
+                    self.__ser__.write(str2dasnet("MAXFLOW{}={}".format(pump, flowrate), self.__source__, self.__dest__))
+                    ret["setpt"] = self.rcvd_ok()
+                if limit:
+                    self.__ser__.write(str2dasnet("MFLOW{}={}".format(pump, flowrate), self.__source__, self.__dest__))
+                    ret["limit"] = self.rcvd_ok()
+            return ret
             
     def minflow(self, flowrate=None, pump='A'):
         "Setter if flowrate is specified; otherwise return max flow."
-        if flowrate is None:
-            self.__ser__.write(str2dasnet("MINFLOW{}".format(pump), self.__source__, self.__dest__))
-            return self.read_vals().values()[0]
-        else:
-            self.__ser__.write(str2dasnet("MINFLOW{}={}".format(pump, flowrate), self.__source__, self.__dest__))
-            return self.rcvd_ok()
+        with self.lock:
+            if flowrate is None:
+                self.__ser__.write(str2dasnet("MINFLOW{}".format(pump), self.__source__, self.__dest__))
+                return self.read_vals().values()[0]
+            else:
+                self.__ser__.write(str2dasnet("MINFLOW{}={}".format(pump, flowrate), self.__source__, self.__dest__))
+                return self.rcvd_ok()
             
     def maxpress(self, pressure=None, pump='A'):
         "Setter if flowrate is specified; otherwise return max flow."
-        if pressure is None:
-            self.__ser__.write(str2dasnet("MAXPRESS{}".format(pump), self.__source__, self.__dest__))
-            return self.read_vals().values()[0]
-        else:
-            self.__ser__.write(str2dasnet("MAXPRESS{}={}".format(pump, pressure), self.__source__, self.__dest__))
-            return self.rcvd_ok()
+        with self.lock:
+            if pressure is None:
+                self.__ser__.write(str2dasnet("MAXPRESS{}".format(pump), self.__source__, self.__dest__))
+                return self.read_vals().values()[0]
+            else:
+                self.__ser__.write(str2dasnet("MAXPRESS{}={}".format(pump, pressure), self.__source__, self.__dest__))
+                return self.rcvd_ok()
             
     def minpress(self, pressure=None, pump='A'):
         "Setter if flowrate is specified; otherwise return max flow."
-        if pressure is None:
-            self.__ser__.write(str2dasnet("MINPRESS{}".format(pump), self.__source__, self.__dest__))
-            return self.read_vals().values()[0]
-        else:
-            self.__ser__.write(str2dasnet("MINPRESS{}={}".format(pump, pressure), self.__source__, self.__dest__))
-            return self.rcvd_ok()
+        with self.lock:
+            if pressure is None:
+                self.__ser__.write(str2dasnet("MINPRESS{}".format(pump), self.__source__, self.__dest__))
+                return self.read_vals().values()[0]
+            else:
+                self.__ser__.write(str2dasnet("MINPRESS{}={}".format(pump, pressure), self.__source__, self.__dest__))
+                return self.rcvd_ok()
             
     def press_set(self, pressure=None, pump='A'):
         """
         Set constant pressure setpoint if specified, else return existing setpoint.
         """
-        if pressure is None:
-            # return the current setpoint
-            self.__ser__.write(str2dasnet("SETPRESS{}".format(pump), self.__source__, self.__dest__))
-            return self.read_vals()["PRESS{}".format(pump)]
-        else:
-            # change the setpoint
-            if pump == 'A': pump = '' # an idiosyncrasy in the protocol
-            self.__ser__.write(str2dasnet("PRESS{}={}".format(pump, pressure), self.__source__, self.__dest__))
-            return self.rcvd_ok()
+        with self.lock:
+            if pressure is None:
+                # return the current setpoint
+                self.__ser__.write(str2dasnet("SETPRESS{}".format(pump), self.__source__, self.__dest__))
+                return self.read_vals()["PRESS{}".format(pump)]
+            else:
+                # change the setpoint
+                if pump == 'A': pump = '' # an idiosyncrasy in the protocol
+                self.__ser__.write(str2dasnet("PRESS{}={}".format(pump, pressure), self.__source__, self.__dest__))
+                return self.rcvd_ok()
             
     def integral_enable(self, pump='A'):
         "Enable integral pressure control."
-        self.__ser__.write(str2dasnet("IPUMP{}=1".format(pump), self.__source__, self.__dest__))
-        return self.__ser__.read_until('\r')
+        with self.lock:
+            self.__ser__.write(str2dasnet("IPUMP{}=1".format(pump), self.__source__, self.__dest__))
+            return self.__ser__.read_until('\r')
         
     def integral_disable(self, pump='A'):
         "Disable integral pressure control."
-        self.__ser__.write(str2dasnet("IPUMP{}=0".format(pump), self.__source__, self.__dest__))
-        return self.__ser__.read_until('\r')
+        with self.lock:
+            self.__ser__.write(str2dasnet("IPUMP{}=0".format(pump), self.__source__, self.__dest__))
+            return self.__ser__.read_until('\r')
         
     def units(self, unit="PSI"):
         "Set pressure unit for all pumps."
-        # case-insensitive
-        self.__ser__.write(str2dasnet("UNITSA={}".format(unit.upper()), self.__source__, self.__dest__))
-        return self.read_vals()["UNITSA"]
+        with self.lock:
+            # case-insensitive
+            self.__ser__.write(str2dasnet("UNITSA={}".format(unit.upper()), self.__source__, self.__dest__))
+            return self.read_vals()["UNITSA"]
     
     ## gradient programming
     
@@ -265,40 +296,52 @@ class ISCOController:
     ## for data measured in real time
         
     def gg(self):
-        self.__ser__.write(str2dasnet("G&", self.__source__, self.__dest__))
-        return self.__ser__.read_until('\r')
+        with self.lock:
+            self.__ser__.write(str2dasnet("G&", self.__source__, self.__dest__))
+            return self.__ser__.read_until('\r')
+            
+    def identify(self):
+        with self.lock:
+            self.__ser__.write(str2dasnet("IDENTIFY", self.__source__, self.__dest__))
+            return self.__ser__.read_until('\r')
         
     def status(self, pump='A'):
         "Get operational status and problems."
-        self.__ser__.write(str2dasnet("STATUS{}".format(pump), self.__source__, self.__dest__))
-        return self.read_vals()
+        with self.lock:
+            self.__ser__.write(str2dasnet("STATUS{}".format(pump), self.__source__, self.__dest__))
+            return self.read_vals()
         
     def press_get(self, pump='A'):
         "Get actual pressure of pump."
-        self.__ser__.write(str2dasnet("PRESS{}".format(pump), self.__source__, self.__dest__))
-        return self.read_vals()["PRESS{}".format(pump)]
+        with self.lock:
+            self.__ser__.write(str2dasnet("PRESS{}".format(pump), self.__source__, self.__dest__))
+            # what should the default value be? The previous value?
+            return self.read_vals().get("PRESS{}".format(pump))
         
     def flow_get(self, pump='A'):
-        "Get actual pressure of pump."
-        self.__ser__.write(str2dasnet("FLOW{}".format(pump), self.__source__, self.__dest__))
-        return self.read_vals()["FLOW{}".format(pump)]
+        "Get actual flowrate of pump."
+        with self.lock:
+            self.__ser__.write(str2dasnet("FLOW{}".format(pump), self.__source__, self.__dest__))
+            return self.read_vals()["FLOW{}".format(pump)]
         
     def vol_get(self, pump='A'):
         "Get volume remaining in cylinder."
-        self.__ser__.write(str2dasnet("VOL{}".format(pump), self.__source__, self.__dest__))
-        try:
-        	return self.read_vals()["VOL{}".format(pump)]
-        except:
-        	#e.g. if the pump is busy
-        	return False
+        with self.lock:
+            self.__ser__.write(str2dasnet("VOL{}".format(pump), self.__source__, self.__dest__))
+            try:
+                return self.read_vals()["VOL{}".format(pump)]
+            except:
+                #e.g. if the pump is busy
+                return False
         
     # higher-level routines
     ## employ methods above
     
     def pause(self, pump='A'):
         "Stop pump without changing constant pressure setpoint."
-        setpt_press = self.press_set(pump=pump)
-        return all((self.clear(), self.press_set(pressure=setpt_press, pump=pump)))
+        with self.lock:
+            setpt_press = self.press_set(pump=pump)
+            return all((self.clear(), self.press_set(pressure=setpt_press, pump=pump)))
     
     def tune_maxflow(self, pump='A'):
         """

@@ -6,15 +6,15 @@ library(gridExtra)
 library(MBA)
 library(reshape2)
 
-dir_data <- "/Applications/spectackler"
-pat_data <- "*20210222_DOPC_410test_x10m20_1*" # filename pattern
+dir_data <- "/Users/cubette/Data/"
+pat_data <- "*20210226_JWL0087P_laurdan_*" # filename pattern
 
 # how we tell whether shutter is open
-thres_intens <- 1
+thres_intens <- 10
 
 # live plotting loop
 refresh = 5 # (seconds)
-img_out = "~/Documents/cubette/20210222_DOPC_laurdan.pdf"
+img_out = "~/Data/20210226_JWL0087P_laurdan_340.pdf"
 
 while(TRUE){
   time_start <- Sys.time()
@@ -27,7 +27,7 @@ while(TRUE){
   # plot Cubette state
   plot_pt <- stateplot(rawdata, lims_t = range(rawdata$T_act), lims_p = range(rawdata$P_act)) + ggtitle("Cubette State")
   # plot GP
-  plot_gp <- contourplot(gpdata, lims_t = range(rawdata$T_act), lims_p = range(rawdata$P_act), gpmin=-0.4, gpmax=0.1) + ggtitle("GP vs. Pressure vs. Temperature")
+  plot_gp <- contourplot(gpdata, lims_t = range(rawdata$T_act), lims_p = range(rawdata$P_act), gpmin=-0.1, gpmax=0.4) + ggtitle("GP vs. Pressure vs. Temperature")
   
   image <- arrangeGrob(plot_pt, plot_gp, ncol=1, heights=c(1,2))
   ggsave(file = img_out, plot = image, width = 6.5, height = 8.0)
@@ -53,7 +53,7 @@ readin <- function(dir, pat){
     do.call(rbind, .)
 }
 
-raw2gp <- function(rawdata, thres_intens, n_reads=9){
+raw2gp <- function(rawdata, thres_intens){
   # calc baseline
   baseline <- rawdata %>%
     filter(intensity < thres_intens) %>%
@@ -74,8 +74,8 @@ raw2gp <- function(rawdata, thres_intens, n_reads=9){
     # group data for each state
     group_by(P_set, T_set, wl_ex, wl_em, msg) %>%
     # just the last 10 values
-    arrange(watch) %>%
-    do(tail(., n=n_reads)) %>%
+    group_by(state, n_read) %>% 
+    top_n(n_read-1, desc(watch)) %>%
     group_by(P_set, T_set, msg) %>%
     mutate(
       P_act = mean(P_act),
