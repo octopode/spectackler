@@ -98,3 +98,17 @@ class AuxMCU:
         self.__ser__.write("HUM\n".encode())
         self.__ser__.flush()
         return str2float(self.__ser__.read(7).rstrip())
+        
+    def inf_get(self):
+        "Request non-contact object temperature"
+        # flush input
+        self.__ser__.write("INF\n".encode())
+        self.__ser__.flush()
+        return str2float(self.__ser__.read(7).rstrip())
+        
+    def amb_get(self):
+        "Request ambient temp as measured by IR device"
+        # flush input
+        self.__ser__.write("AMB\n".encode())
+        self.__ser__.flush()
+        return str2float(self.__ser__.read(7).rstrip())

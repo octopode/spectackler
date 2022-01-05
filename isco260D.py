@@ -70,13 +70,13 @@ class ISCOController:
     def rcvd_ok(self):
         "Readline and if OK code comes in, return True; else, False."
         with self.lock:
-            return self.__ser__.read_until('\r') == b'R 8E\r'
+            return self.__ser__.read_until(b'\r') == b'R 8E\r'
         
     def read_vals(self):
         "Readline and extract values from DASNET frame."
         with self.lock:
             # split individual messages
-            msg = dasnet2str(self.__ser__.read_until('\r'))
+            msg = dasnet2str(self.__ser__.read_until(b'\r'))
             try: msg_list = msg.split(',')
             # if nothing comes in
             except: return None
@@ -96,7 +96,7 @@ class ISCOController:
     def flush(self):
         with self.lock:
             self.__ser__.flush()
-            return self.__ser__.read_until('\r')
+            return self.__ser__.read_until(b'\r')
         
     # action commands
     ## acknowledged over serial with b'R 8E\r'
@@ -104,12 +104,12 @@ class ISCOController:
     def remote(self):
         with self.lock:
             self.__ser__.write(str2dasnet("REMOTE", self.__source__, self.__dest__))
-            return self.__ser__.read_until('\r')
+            return self.__ser__.read_until(b'\r')
         
     def local(self):
         with self.lock:
             self.__ser__.write(str2dasnet("LOCAL", self.__source__, self.__dest__))
-            return self.__ser__.read_until('\r')
+            return self.__ser__.read_until(b'\r')
             
     def disconnect(self):
         with self.lock:
@@ -163,39 +163,39 @@ class ISCOController:
         }
         if mode in (list(shortcuts.values()) + list(shortcuts.keys())):
             self.__ser__.write(str2dasnet("INDEPENDENT".format(pump, mode)))
-            print(self.__ser__.read_until('\r'))
+            print(self.__ser__.read_until(b'\r'))
             self.__ser__.write(str2dasnet("INDEPENDENTCD".format(pump, mode)))
-            print(self.__ser__.read_until('\r'))
+            print(self.__ser__.read_until(b'\r'))
             try:
                 mode = shortcuts[mode]
             except KeyError:
                 pass
         self.__ser__.write(str2dasnet("MODE {} {}".format(pump, mode)))
-        return self.__ser__.read_until('\r')
+        return self.__ser__.read_until(b'\r')
         
     def mode_const_press(self, pump='A'):
         with self.lock:
             if pump == 'A': pump = '' # an idiosyncrasy in the protocol
             self.__ser__.write(str2dasnet("CONST PRESS{}".format(pump)))
-            return self.__ser__.read_until('\r')
+            return self.__ser__.read_until(b'\r')
             
     def mode_const_flow(self, pump='A'):
         with self.lock:
             if pump == 'A': pump = '' # an idiosyncrasy in the protocol
             self.__ser__.write(str2dasnet("CONST FLOW{}".format(pump)))
-            return self.__ser__.read_until('\r')
+            return self.__ser__.read_until(b'\r')
             
     def mode_prgm_grad(self, pump='A'):
         with self.lock:
             if pump == 'A': pump = '' # an idiosyncrasy in the protocol
             self.__ser__.write(str2dasnet("PRGM_GRAD{}".format(pump)))
-            return self.__ser__.read_until('\r')
+            return self.__ser__.read_until(b'\r')
         
     def zero(self, pump='A'):
         "Zero the pressure sensor."
         with self.lock:
             self.__ser__.write(str2dasnet("ZERO{}".format(pump), self.__source__, self.__dest__))
-            return self.__ser__.read_until('\r')
+            return self.__ser__.read_until(b'\r')
         
     # register setters/getters
     ## these are for static values that are changeable only by user command
@@ -211,11 +211,11 @@ class ISCOController:
             if flowrate is None:
                 if setpt:
                     self.__ser__.write(str2dasnet("MAXFLOW{}".format(pump), self.__source__, self.__dest__))
-                    ret["setpt"] = dasnet2str(self.__ser__.read_until('\r'))
+                    ret["setpt"] = dasnet2str(self.__ser__.read_until(b'\r'))
                 if limit:
                     if pump == 'A': pump = ''
                     self.__ser__.write(str2dasnet("LIMITS{}".format(pump), self.__source__, self.__dest__))
-                    ret["limit"] = dasnet2str(self.__ser__.read_until('\r'))
+                    ret["limit"] = dasnet2str(self.__ser__.read_until(b'\r'))
             else:
                 if setpt:
                     self.__ser__.write(str2dasnet("MAXFLOW{}={}".format(pump, flowrate), self.__source__, self.__dest__))
@@ -274,13 +274,13 @@ class ISCOController:
         "Enable integral pressure control."
         with self.lock:
             self.__ser__.write(str2dasnet("IPUMP{}=1".format(pump), self.__source__, self.__dest__))
-            return self.__ser__.read_until('\r')
+            return self.__ser__.read_until(b'\r')
         
     def integral_disable(self, pump='A'):
         "Disable integral pressure control."
         with self.lock:
             self.__ser__.write(str2dasnet("IPUMP{}=0".format(pump), self.__source__, self.__dest__))
-            return self.__ser__.read_until('\r')
+            return self.__ser__.read_until(b'\r')
         
     def units(self, unit="PSI"):
         "Set pressure unit for all pumps."
@@ -298,12 +298,12 @@ class ISCOController:
     def gg(self):
         with self.lock:
             self.__ser__.write(str2dasnet("G&", self.__source__, self.__dest__))
-            return self.__ser__.read_until('\r')
+            return self.__ser__.read_until(b'\r')
             
     def identify(self):
         with self.lock:
             self.__ser__.write(str2dasnet("IDENTIFY", self.__source__, self.__dest__))
-            return self.__ser__.read_until('\r')
+            return self.__ser__.read_until(b'\r')
         
     def status(self, pump='A'):
         "Get operational status and problems."
