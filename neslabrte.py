@@ -6,6 +6,8 @@ neslabrte.py
 driver module for controlling NESLAB RTE series circulator
 v0.5 (c) JRW 2021 - jwinnikoff@mbari.org
 
+# NOTE 20211023 - as yet this only works properly in python 2
+
 GNU PUBLIC LICENSE DISCLAIMER:
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -31,6 +33,7 @@ from itertools import chain
 def bytestr2bytelist(bytestr):
     "Get ordinal values from bytestring."
     return [ord(i) for i in bytestr]
+    #return bytestr #python 3
     
 def checksum(bytelist):
     "Calculate checksum: bitwise inversion of sum of bytestring."
@@ -196,7 +199,7 @@ class NeslabController(TCal):
     ):
         "On/off array setter."
         # make sure bytes are in order
-    	switches = ["unit_on", "probe_ext", "faults", "mute", "auto_restart", "prec_hi", "fullrange_cool", "remote"]
+        switches = ["unit_on", "probe_ext", "faults", "mute", "auto_restart", "prec_hi", "fullrange_cool", "remote"]
         dat = [0x02 if locals()[i] is None else int(locals()[i]) for i in switches]
         return self.query([0x81], dat=dat) == dat # True if successful
     
@@ -210,7 +213,7 @@ class NeslabController(TCal):
         # get
         if status is None: return self.status_get()["unit_on"]
         # set
-        else: return status_set(unit_on = status)
+        else: return self.status_set(unit_on = status)
             
     def probe_ext(self, status=None):
         "Get or set status of external probe (used for control, or not?)"
@@ -224,7 +227,8 @@ class NeslabController(TCal):
         # get
         if temp is None: return threebyte2float(self.query([0x70]))
         # set
-        else: return threebyte2float(self.query([0xf0], dat=int2int16(temp*10))) == temp
+        # temp*10 if in 0.1 mode, *100 if 0.01 mode. #TODO: make less dumb
+        else: return threebyte2float(self.query([0xf0], dat=int2int16(temp*100))) == temp
             
     def fault_lo(self, limit=None):
         "Set or get low-temp fault limit."
