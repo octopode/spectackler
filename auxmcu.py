@@ -83,6 +83,8 @@ class AuxMCU:
             else: 
                 self.__ser__.write("LOF\n".encode())
                 self.lamp_status = str2bool(self.__ser__.read(3).rstrip())
+                # hack
+                #self.lamp_status = False
         return self.lamp_status
         
     def temp_get(self):

@@ -8,7 +8,7 @@ import auxmcu
 import traceback
 from time import sleep
 
-amcu = auxmcu.AuxMCU(port="/dev/cu.usbmodem142201")
+amcu = auxmcu.AuxMCU(port="/dev/cu.usbmodem1411401")
 
 i=0
 while True:

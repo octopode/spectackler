@@ -40,6 +40,7 @@ import sys
 import argparse
 from re import split
 import traceback
+from warnings import warn
 import time
 import itertools
 import numpy as np
@@ -77,11 +78,18 @@ def poll(dev, free, meas, pid=None):
                     "T_act" : round(dev.cal_int.ref2act(temp_int), 2)
                 }
             elif devclass == "ISCOController":
-                vals_dict = {
-                    "vol"   : dev.vol_get(),
-                    "P_act" : dev.press_get(),
-                    "air"   : dev.digital(0)
-                }
+                # should be resilient to driver failure
+                while True:
+                    try:
+                        vals_dict = {
+                            "vol"   : dev.vol_get(),
+                            "P_act" : dev.press_get(),
+                            "air"   : dev.digital(0)
+                        }
+                        break
+                    except:
+                        warn("WARNING: pump poll failure")
+                        pass
             elif devclass == "RF5301":
                 vals_dict = {
                     "intensity" : dev.fluor_get(),
@@ -289,8 +297,8 @@ def main(args, stdin, stdout, stderr):
                 
                 # set temp
                 bath_free.clear()
-                time.sleep(1)
-                while not isclose(bath.temp_set(), round(bath.cal_int.act2ref(state_curr['T_set']), 2)):
+                time.sleep(1) # brute force error avoidance
+                while not isclose(round(bath.temp_set(),1), round(bath.cal_int.act2ref(state_curr['T_set']), 1)):
                     print("setting temperature to {}°C".format(state_curr['T_set']), file=stderr, flush=True, end=' ')
                     bath.temp_set(bath.cal_int.act2ref(state_curr['T_set']))
                     print('√', file=stderr, flush=True)
@@ -347,6 +355,8 @@ def main(args, stdin, stdout, stderr):
                     elif (state_curr['wl_ex'] == 410) and (state_curr['wl_em'] == 490):
                         print("setting wavelengths to 410/490", file=stderr, flush=True, end=' ')
                         if spec.wl_set_410_490(): print('√', file=stderr, flush=True)
+                    # allow the monochromators to register
+                    time.sleep(3)
                         
                     # slits
                     if state_curr['slit_ex'] != data_dict['slit_ex']:
@@ -429,6 +439,8 @@ def main(args, stdin, stdout, stderr):
                             while not spec.shutter(True): pass
                             spec_free.set()
                             time_open = time.time()
+                            # allow the shutter to open
+                            time.sleep(1)
                             
                         # reset
                         waited = False
@@ -447,7 +459,7 @@ def main(args, stdin, stdout, stderr):
                         if not waiting:
                             # increment the reading count
                             readings += 1
-                            print("reading {}/{} s: {} AU  ".format(readings, data_dict["n_read"], data_dict["intensity"]), file=sys.stderr, end='\r', flush=True)
+                            print("reading {}/{}: {} AU  ".format(readings, data_dict["n_read"], data_dict["intensity"]), file=sys.stderr, end='\r', flush=True)
                             # once sufficient readings have been taken
                             if readings >= data_dict["n_read"]:
                                 print(file=stderr, flush=True) # newline
@@ -461,6 +473,11 @@ def main(args, stdin, stdout, stderr):
                                 break
                     
             # shut down when done
+            amcu_free.clear()
+            amcu.__ser__.send_break(duration=amcu.__ser__.timeout+0.1)
+            time.sleep(amcu.__ser__.timeout+0.1)
+            amcu.lamp(False) 
+            time.sleep(3)
             pump_free.clear()
             pump.digital(0,0)
             pump.pause()
@@ -471,24 +488,23 @@ def main(args, stdin, stdout, stderr):
             spec_free.clear()
             spec.shutter(True)
             spec.disconnect()
-            amcu_free.clear()
-            amcu.__ser__.send_break(duration=amcu.__ser__.timeout+0.1)
-            time.sleep(amcu.__ser__.timeout+0.1)
-            amcu.lamp(False)
+            
             sys.exit(0)
     
         except:
             # on failure:
-            pump_free.clear()
-            pump.pause()
-            pump.digital(0,0) # turn the air off!
-            spec_free.clear()
-            spec.ack()
-            spec.shutter(False)
             amcu_free.clear()
             amcu.__ser__.send_break(duration=amcu.__ser__.timeout+0.1)
             time.sleep(amcu.__ser__.timeout+0.1)
             amcu.lamp(False)
+            time.sleep(3)
+            pump_free.clear()
+            pump.digital(0,0) # turn the air off!
+            pump.pause()
+            spec_free.clear()
+            spec.ack()
+            spec.shutter(False)
+            time.sleep(amcu.__ser__.timeout+0.1)
             traceback.print_exc()
             
 if __name__ == "__main__":

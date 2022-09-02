@@ -1,2 +1,10 @@
 *.pyc
 *bak*
+*scratch*
+*test*
+# data files
+*data*
+*.log
+*.tsv
+*.dat
+*.txt

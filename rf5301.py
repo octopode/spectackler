@@ -22,7 +22,7 @@ import serial
 import threading
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 from sys import stderr
 from time import sleep
 import binascii
@@ -103,9 +103,15 @@ def shim_checksum(msg):
         b'\x02W\xc11\xb0\xb0411\xb3\xb0\x83'    : 0x13,
         b'\x02W\xc11\xb0\xb041\xb324\x83'       : 0x94,
         # ex slit
+        b'\x02\xd3X1\x83'       : 0xb9, # 1.5 nm
+        b'\x02\xd3X2\x83'       : 0xba, # 3 nm
+        b'\x02\xd3X\xb3\x83'    : 0x3b, # 5 nm
         b'\x02\xd3X\xb5\x83'    : 0x3d, # 15 nm
         b'\x02\xd3X\xb6\x83'    : 0x3e, # 20 nm
         # em slit
+        b'\x02\xd3\xcd1\x83'    : 0x2c, # 1.5 nm
+        b'\x02\xd3\xcd2\x83'    : 0x2f, # 3 nm
+        b'\x02\xd3\xcd\xb3\x83' : 0xae, # 5 nm
         b'\x02\xd3\xcd4\x83'    : 0x29, # 10 nm
         b'\x02\xd3\xcd\xb6\x83' : 0xab, # 20 nm
         b'\x02\xd3\xcd7\x83'    : 0x2a, # shut
@@ -118,7 +124,7 @@ def remove_prefix(text, prefix):
     return text[text.startswith(prefix) and len(prefix):]
     
 class RF5301:
-    def __init__(self, port, baud=9600, timeout=1, exslit=20, emslit=20):
+    def __init__(self, port, baud=9600, timeout=1, exslit=None, emslit=None, shutstat=None):
         """
         Open serial interface, set remote status and baudrate.
         The serial handle becomes a public instance object.
@@ -141,8 +147,11 @@ class RF5301:
                 
         # init slit wheels
         # need sleep time here?
-        while not self.slit_ex(exslit): pass
-        while not self.slit_em(emslit): pass
+        self.exslit = exslit
+        self.emslit = emslit
+        #while not self.slit_ex(exslit): pass
+        #while not self.slit_em(emslit): pass
+        self.shutstat = shutstat
                 
     def disconnect(self):
         "Close serial interface."
@@ -217,15 +226,20 @@ class RF5301:
             msg = [0x45]
             return hex2dec(remove_prefix(self.query(msg), '0'+hex2ascii(msg).decode()))
         
-    def shutter(self, status):
+    def shutter(self, status=None):
         "Open (True) or close (False) the shutter"
-        with self.lock:
-            msg = [0xce]
-            if status:
-                msg.append(0x31)
-            else:
-                msg.append(0x32)
-            return not int(self.query(msg))
+        if status is not None:
+            with self.lock:
+                msg = [0xce]
+                if status:
+                    msg.append(0x31)
+                else:
+                    msg.append(0x32)
+                ok = not int(self.query(msg))
+                if ok: self.shutstat = status
+                return ok
+        else:
+           return self.shutstat
             
     def zero(self):
         "Autozero the photometer"
@@ -358,6 +372,18 @@ class RF5301:
             #hex_str = remove_prefix(self.query(msg), '0'+hex2ascii(msg).decode()+'\x00')
             # remove message and padding
             return hex2dec(self.query(msg)[-6:])/1000
+            
+#    def scan_set(self, type="em", wl, wls, spd, ivl):
+#        "Send scan parameters to instrument"
+    
+#    def scan_get(self, type="em", wl, wls, spd, ivl):
+#        "Perform wavelength scan. A generator that returns (wl, intensity) tuples."
+#        # compose command block
+#        cmd_scan = []
+#        # run scan
+#        for wl, intensity in zip(wl_seq, self.querygen(cmd_scan)):
+#        	yield (wl, intensity)
+    
         
     # SOFTWARE HANDSHAKING METHODS
     def query(self, msg):
@@ -390,6 +416,33 @@ class RF5301:
                 return [shim2str(block) for block in blocks]
             else:
                 return shim2str(blocks[0])
+                
+    def querygen(self, msg):
+        "Enframe query (presently bytelist), send to instrument, YIELD reply"
+        with self.lock:
+            self.__ser__.flush()
+            # hello?
+            self.enq(True)
+            self.ack(False)
+            # now send the command
+            self.__ser__.write(str2shim(msg))
+            # wait for ack
+            self.ack(False)
+            # send EOT
+            self.eot(True)
+            # wait for ENQ (=CTR)
+            self.enq(False)
+            # send ACK
+            self.ack(True)
+            # read blocks to EOT
+            blocks = []
+            while True:
+                block = self.read_block()
+                yield shim2str(block)
+                # read_block() will pass an EOT straight thru
+                if block == ord(b'\x84'): return
+            # wait for EOT to clear the line?
+            self.eot(False)
             
     def read_block(self):
         "Read block terminated with ETB or ETX, return bytestring"

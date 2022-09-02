@@ -27,13 +27,14 @@ import io
 import struct
 from re import sub
 from itertools import chain
+from warnings import warn
 
 ## binary encode/decode functions
     
 def bytestr2bytelist(bytestr):
     "Get ordinal values from bytestring."
-    return [ord(i) for i in bytestr]
-    #return bytestr #python 3
+    #return [ord(i) for i in bytestr]
+    return [i for i in bytestr] #python 3
     
 def checksum(bytelist):
     "Calculate checksum: bitwise inversion of sum of bytestring."
@@ -145,37 +146,40 @@ class NeslabController(TCal):
         self.cal_ext = TCal(1, 0)
         
     def query(self, cmd, dat=[]):
-        "Send a query and return response bytes; throw ChecksumException if checksum fails."
+        "Send a query and return response bytes; throw warning and try again if checksum fails."
         
-        # send query
-        query = enframe(cmd, dat, multidrop = self.__multidrop__, addr = self.__addr__)
-        #print(query) #TEST
-        self.__ser__.write(query)
-        self.__ser__.flush()
-        
-        # read full response
-        # starting with 4-byte leader and manifest byte
-        reply = []
-        reply += bytestr2bytelist(self.__ser__.read(5))
-        # the last one is the number of data bytes
-        # (plus the checkbyte)
-        reply += bytestr2bytelist(self.__ser__.read(reply[-1]+1))
-        
-        # parse the reply
-        leader = reply[:4] # lead char, address, and command
-        dbytes = reply[5:-1] # data bytes
-        ckbyte = reply[-1] # checksum
-        #print(list(reply)) #TEST
-        # and calc correct checksum
-        chksum = checksum(reply[1:-1])
-        
-        # check that leader matches
-        if leader == query[:4]:
-            # and that checksum is valid
-            if ckbyte == chksum:
-                return dbytes
-            else: raise serial.SerialException("Checksum mismatch: should be {}; read {}.".format(chksum, ckbyte))
-        else: raise serial.SerialException("Command mismatch: should be {}; read {}.".format(query[:4], leader))
+        tries = 0
+        while not tries or not ((leader == query) and (ckbyte == chksum)):
+            tries += 1
+            # send query
+            query = enframe(cmd, dat, multidrop = self.__multidrop__, addr = self.__addr__)
+            #print(query) #TEST
+            self.__ser__.write(query)
+            self.__ser__.flush()
+            
+            # read full response
+            # starting with 4-byte leader and manifest byte
+            reply = []
+            reply += bytestr2bytelist(self.__ser__.read(5))
+            # the last one is the number of data bytes
+            # (plus the checkbyte)
+            reply += bytestr2bytelist(self.__ser__.read(reply[-1]+1))
+            
+            # parse the reply
+            leader = reply[:4] # lead char, address, and command
+            dbytes = reply[5:-1] # data bytes
+            ckbyte = reply[-1] # checksum
+            #print(list(reply)) #TEST
+            # and calc correct checksum
+            chksum = checksum(reply[1:-1])
+            
+            # check that leader matches
+            if leader == query[:4]:
+                # and that checksum is valid
+                if ckbyte == chksum:
+                    return dbytes
+                else: warn("Checksum mismatch: should be {}; read {}. Attempt #{}".format(chksum, ckbyte, tries))
+            else: warn("Command mismatch: should be {}; read {}. Attempt #{}".format(query[:4], leader, tries))
         
     def disconnect(self):
         "Close serial interface."
@@ -197,10 +201,10 @@ class NeslabController(TCal):
         fullrange_cool = None,
         remote = None
     ):
-        "On/off array setter."
         # make sure bytes are in order
         switches = ["unit_on", "probe_ext", "faults", "mute", "auto_restart", "prec_hi", "fullrange_cool", "remote"]
-        dat = [0x02 if locals()[i] is None else int(locals()[i]) for i in switches]
+        allvars = locals()
+        dat = [0x02 if allvars[i] is None else int(allvars[i]) for i in switches]
         return self.query([0x81], dat=dat) == dat # True if successful
     
     def status_get(self):
@@ -210,10 +214,11 @@ class NeslabController(TCal):
             
     def on(self, status=None):
         "Get or set on-status of the circulator."
+        # 20220105 hack fix, status reads incorrectly
         # get
-        if status is None: return self.status_get()["unit_on"]
+        if status is None: self.status_get()["unit_on"]; return True
         # set
-        else: return self.status_set(unit_on = status)
+        else: self.status_set(unit_on = status); return True
             
     def probe_ext(self, status=None):
         "Get or set status of external probe (used for control, or not?)"
@@ -228,7 +233,7 @@ class NeslabController(TCal):
         if temp is None: return threebyte2float(self.query([0x70]))
         # set
         # temp*10 if in 0.1 mode, *100 if 0.01 mode. #TODO: make less dumb
-        else: return threebyte2float(self.query([0xf0], dat=int2int16(temp*100))) == temp
+        else: return threebyte2float(self.query([0xf0], dat=int2int16(int(round(temp, 2)*100)))) == temp
             
     def fault_lo(self, limit=None):
         "Set or get low-temp fault limit."

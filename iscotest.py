@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/opt/miniconda3/bin/python
 
 """
 initialize ISCO pump, then provide user with an interactive console for debugging
@@ -12,7 +12,7 @@ def gg2psi(gg_str):
     "get PSI value from G& get all status string"
     return float(gg_str.decode("utf-8").split('=')[1].split(',')[0]) / 5
 
-pump = isco.ISCOController(port="/dev/cu.usbserial-FTV5C58R1",source=0,dest=1)
+pump = isco.ISCOController(port="/dev/cu.usbserial-FT4IVKAO0",source=0,dest=1)
 
 pump.remote()
 print(pump.gg())
