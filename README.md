@@ -1,4 +1,4 @@
-#spectackler
+# spectackler
 
 Drivers and software for making spectrophotometric measurements under pressure.
 
@@ -7,11 +7,11 @@ Drivers and software for making spectrophotometric measurements under pressure.
 These drivers and interfaces provide an cross-platform, open-source interface for
 instruments that previously required proprietary Windows software.
 
-###Suggested use
+### Suggested use
 
 The [below drivers](#hardware-drivers) are commented and I hope their methods will be self-explanatory. Use my [data collection suites](#data-collection-suites) as application examples. Go get 'em (data) and have fun!
 
-##Hardware drivers
+## Hardware drivers
 
 Each module implements one device class. You can connect as many instances of the device as you like.
 
@@ -37,13 +37,13 @@ Several higher-level scripts are included here that use some or all of the above
 
 * [Calibration routines](#calibration-routines)
 
-##Data visualization
+## Data visualization
 
 * Laurdan GP (with `ggplot2`)
 
 * Kinetic trace (in python)
 
-###isco260d.py
+### isco260d.py
 
 Though I originally wrote this for a model 260D pump, I have been using it unmodified with an 100DM and have yet to experience any issues. 
 
@@ -61,7 +61,7 @@ To change the pump address and baudrate on the pump side, [consult the manual](h
 
 > Note: for unknown reasons, the `STOPALL` command issued by the `stop()` method does not work on either pump I have used. Recommend using `pause()`, which I built as a workaround. It stores the current setpoint, issues `CLEAR`, then restores the setpoint.
 
-###neslabrte.py
+### neslabrte.py
 
 `neslabtest.py` can be used to test your setup with the driver.
 
@@ -76,7 +76,7 @@ And a general note on NESLAB waterbaths:
 
 * Unlike some other makes, serial vs. front panel control on a NESLAB bath is __either/or__: once in serial the only button that will function on the temp controller is POWER. Conversely, outside of serial mode, the instrument will not respond to serial signals. To learn which buttons get you in (and if need be, out), of serial mode, see pp. 24 of [the manual.](https://github.com/octopode/spectackler/blob/master/manuals/Thermo-NESLAB_RTE-0series.pdf) The easiest way to hand control back to the front panel is to issue `status_set(remote=False)`.
 
-###isotemp6200.py
+### isotemp6200.py
 
 `isotemptest.py` can be used to test your setup with the driver.
 
@@ -84,7 +84,7 @@ The isotemp line are solid budget waterbaths. Current models come with a built-i
 
 The only issue I have ever had using this driver involves the UART dropping out when connected to an unpowered USB hub.
 
-###rf5301.py
+### rf5301.py
 
 `spectest.py` can be used to test your setup with the driver.
 
@@ -106,7 +106,7 @@ Note: Unlike the other instruments here, there is no serial comms protocol avail
   
   > As of 20220902, I have a lead on `RFPC` internal documentation. Stay tuned!
   
-###amcu.py
+### amcu.py
 
 Auxiliary MicroController Unit (AMCU) is the fancy name for an Arduino I have hooked up to the system to do odd jobs. As of now, these consist of:
 
@@ -118,11 +118,11 @@ Auxiliary MicroController Unit (AMCU) is the fancy name for an Arduino I have ho
 
 `20211230_CubetteAux.ino` is the latest version of the sketch I've been running on the Arduino.
 
-###Low-cost serial sniffer
+### Low-cost serial sniffer
 
 A byproduct of this project was a cheap and straightforward way to intercept bidirectional RS232 communications. It took me a couple hours to get this solution together, so I'm including it here in hopes it might help someone. A lot of RS232-based lab equipment is still around, and not all of it has well-documented comm protocols.
 
-####Hardware
+#### Hardware
 
 1. In addition to whatever's already in your setup, you are going to need __a pair of USB <-> RS232 adaptors__ to dedicate to sniffing. A dual-port adaptor (e.g. StarTech ICUSB2322I) is just as good.
 
@@ -149,7 +149,7 @@ Connect as follows:
 *2x adaptors and 2x USB connections if you use twin single-port adaptors
 ```
 
-####Software
+#### Software
 
 This was the tricky bit for me. [`socat`](https://linux.die.net/man/1/socat) is a fantastic utility, but like many UNIX-compatible tools, it's not the most intuitive.
 
