@@ -231,10 +231,10 @@ It has occasionally been necessary to run experiments that quantify instrument p
 
 ### laurdan.R
 
-Takes in one or more raw output files from (`viscotheque_laurdan.py`)[#viscotheque_laurdanpy]. Simultaneously outputs a trace of the pressure chamber in P-T space and a contour plot of laurdan GP, which is calculated from the raw fluorescence data. The infinite loop at the end of the script can be used for continuous monitoring of an experiment in progress. Point the R script to the raw data file(s), then point an auto-refreshing PDF viewer like [Skim](https://skim-app.sourceforge.io/) to the script's output file. This will produce something like the image you see at the top of this readme.
+Takes in one or more raw output files from [`viscotheque_laurdan.py`](#viscotheque_laurdanpy). Simultaneously outputs a trace of the pressure chamber in P-T space and a contour plot of laurdan GP, which is calculated from the raw fluorescence data. The infinite loop at the end of the script can be used for continuous monitoring of an experiment in progress. Point the R script to the raw data file(s), then point an auto-refreshing PDF viewer like [Skim](https://skim-app.sourceforge.io/) to the script's output file. This will produce something like the image you see at the top of this readme.
 
 > Needs to be pushed as of 20220907.
 
 ### kinetoscope.py
 
-Takes in raw output file from (`kinetheque.py`)[#kinethequepy] and provides a simple strip chart of fluorescence in real time. A dead-simple application of the (`oscilloscope` package)[https://pypi.org/project/oscilloscope/]. Look inside the script for parameters you might want to change.
+Takes in raw output file from [`kinetheque.py`](#kinethequepy) and provides a simple strip chart of fluorescence in real time. A dead-simple application of the [`oscilloscope` package](https://pypi.org/project/oscilloscope/). Look inside the script for parameters you might want to change.
