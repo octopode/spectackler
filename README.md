@@ -15,23 +15,23 @@ The [below drivers](#hardware-drivers) are commented and I hope their methods wi
 
 Each module implements one device class. You can connect as many instances of the device as you like.
 
-* [(Teledyne) ISCO D-series high-pressure syringe pump `isco260D.py`](#isco260d.py)
+* [(Teledyne) ISCO D-series high-pressure syringe pump `isco260D.py`](#isco260d-py)
 
-* [(Thermo) NESLAB RTE series Digital Plus temperature controller `neslabrte.py`](#neslabrte.py)
+* [(Thermo) NESLAB RTE series Digital Plus temperature controller `neslabrte.py`](#neslabrte-py)
 
-* [Fisher Isotemp 6200 temperature controller `isotemp6200.py`](#isotemp6200.py)
+* [Fisher Isotemp 6200 temperature controller `isotemp6200.py`](#isotemp6200-py)
 
-* [Shimadzu RF-5301PC spectrofluorophotometer `rf5301.py`](#rf5301.py)
+* [Shimadzu RF-5301PC spectrofluorophotometer `rf5301.py`](#rf5301-py)
 
-* [Auxiliary microcontroller for misc functions](#amcu.py)
+* [Auxiliary microcontroller for misc functions](#amcu-py)
 
 ## Data collection suites
 
 Higher-level scripts are included here that use some or all of the above drivers. A feature of all these programs is that they write __raw__ data to the disk __in real time__. This prevents data loss should the software or computer crash mid-experiment, but it does result in some pretty big text files, since data are recorded at the temporal resolution of the fastest instrument. Data processing and visualization is left to [external scripts](#data-vizualization).
 
-* [Steady-state fluorimetry (e.g. Laurdan)](#viscotheque_laurdan.py)
+* [Steady-state fluorimetry (e.g. Laurdan)](#viscotheque_laurdan-py)
 
-* [Kinetics](#kinetheque.py)
+* [Kinetics](#kinetheque-py)
 
 * [Calibration routines](#calibration-routines)
 
