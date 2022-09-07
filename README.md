@@ -1,5 +1,10 @@
 # spectackler
 
+<p float="left">
+  <img src="img/JWL191P_hires_bar.gif" width="300" />
+  <img src="img/Cubette2.jpg" width="300" /> 
+</p>
+
 Drivers and software for making spectrophotometric measurements under pressure.
 
 **Teach your old spec new tricks!**
@@ -37,11 +42,11 @@ Higher-level scripts are included here that use some or all of the above drivers
 
 > Note 20220907: These scripts open one main thread, plus a separate polling thread for each instrument. Though I have yet to make all the polling threads close cleanly at the end of an experiment, the experiment itself ends cleanly; i.e. hardware programmed to shut down automatically will do so.
 
-## Data visualization
+## Data analysis and visualization
 
-* Laurdan GP (with `ggplot2`)
+* [Laurdan GP `laurdan.R`](#laurdanr) (with `ggplot2`)
 
-* Kinetic trace (in python)
+* [Kinetic trace `kinetoscope.py`](#kinetoscopepy) (in python)
 
 ### isco260d.py
 
@@ -222,4 +227,14 @@ It has occasionally been necessary to run experiments that quantify instrument p
 
 + `pressrecord.py` is a simple polling script that logs pressure, pump flowrate, and cylinder volume to a file. Like other data collection scripts here, it records elapsed time and date/time from the system clock. Handy for documenting simple pressure incubations or system integrity tests.
 
-+ `flowrateTest.py` is used to determine how quickly the pressure can be ramped before an unacceptable pressure difference develops between the pump cylinder and the optical cell. This can be thought of as a practical measure of resistance in the pressure plumbing. It ramps between a (hardcoded) set of pressures at a (hardcoded) set of flowrates. When the experiment is complete, it is up to you to inspect the pressure trace and see how much it settles after the pump is stopped under each set of conditions. This information is useful for capping the flowrate in a kinetic experiment, or determining appropriate wait times for a steady-state protocol.
++ `flowrateTest.py` is used to determine how quickly the pressure can be ramped before an unacceptable pressure difference develops between the pump cylinder and the optical cell. This can be thought of as a practical measure of resistance in the pressure plumbing. It ramps between a (hardcoded) set of pressures at a (hardcoded) set of flowrates. When the experiment is complete, it is up to you to inspect the pressure trace and see how much it settles after the pump is stopped under each set of conditions. This information is useful for capping the flowrate in a kinetic experiment and for determining appropriate wait times in a steady-state protocol.
+
+### laurdan.R
+
+Takes in one or more raw output files from (`viscotheque_laurdan.py`)[#viscotheque_laurdanpy]. Simultaneously outputs a trace of the pressure chamber in P-T space and a contour plot of laurdan GP, which is calculated from the raw fluorescence data. The infinite loop at the end of the script can be used for continuous monitoring of an experiment in progress. Point the R script to the raw data file(s), then point an auto-refreshing PDF viewer like [Skim](https://skim-app.sourceforge.io/) to the script's output file. This will produce something like the image you see at the top of this readme.
+
+> Needs to be pushed as of 20220907.
+
+### kinetoscope.py
+
+Takes in raw output file from (`kinetheque.py`)[#kinethequepy] and provides a simple strip chart of fluorescence in real time. A dead-simple application of the (`oscilloscope` package)[https://pypi.org/project/oscilloscope/]. Look inside the script for parameters you might want to change.
