@@ -1,11 +1,11 @@
 # spectackler
 
+Drivers and software for making spectrophotometric measurements under pressure.
+
 <p float="left">
   <img src="img/JWL191P_hires_bar.gif" width="300" />
-  <img src="img/Cubette2.jpg" width="300" /> 
+  <img src="img/Cubette2.jpg" width="350" /> 
 </p>
-
-Drivers and software for making spectrophotometric measurements under pressure.
 
 **Teach your old spec new tricks!**
 
