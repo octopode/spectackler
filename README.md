@@ -9,7 +9,7 @@ instruments that previously required proprietary Windows software.
 
 ### Suggested use
 
-The [below drivers](#hardware-drivers) are commented and I hope their methods will be self-explanatory. Use my [data collection suites](#data-collection-suites) as application examples. Go get 'em (data) and have fun!
+The [below drivers](#hardware-drivers) are commented and I hope their methods will be self-explanatory. Use my [data collection suites](#data-collection-suites) as application examples, or, if you manage to replicate my setup exactly, use them as-is. Go get 'em (data) and have fun!
 
 ## Hardware drivers
 
@@ -25,17 +25,17 @@ Each module implements one device class. You can connect as many instances of th
 
 * [Auxiliary microcontroller for misc functions](#amcu.py)
 
-> This hardware works fine 
+## Data collection suites
 
-##Data collection suites
+Higher-level scripts are included here that use some or all of the above drivers. A feature of all these programs is that they write __raw__ data to the disk __in real time__. This prevents data loss should the software or computer crash mid-experiment, but it does result in some pretty big text files, since data are recorded at the temporal resolution of the fastest instrument. Data processing and visualization is left to [external scripts](#data-vizualization).
 
-Several higher-level scripts are included here that use some or all of the above drivers
-
-* [Ratiometric fluorimetry (specifically, Laurdan)](#viscotheque_laurdan.py)
+* [Steady-state fluorimetry (e.g. Laurdan)](#viscotheque_laurdan.py)
 
 * [Kinetics](#kinetheque.py)
 
 * [Calibration routines](#calibration-routines)
+
+> Note 20220907: These scripts open one main thread, plus a separate polling thread for each instrument. Though I have yet to make all the polling threads close cleanly at the end of an experiment, the experiment itself ends cleanly; i.e. hardware programmed to shut down automatically will do so.
 
 ## Data visualization
 
@@ -173,3 +173,37 @@ Once you start communicating with your instrument, the `socat` terminal will spi
 `socat -x -dd /dev/cu.usbserial-FT4IVKAO0,raw,echo=0,crnl /dev/cu.usbserial-FT4IVKAO1,raw,echo=0,crnl 2>&1 | tee hex.log | socatrans.py | asc.log`
 
 Happy sniffing!
+
+### viscotheque_laurdan.py
+
+This versatile script can be used to make just about any steady-state fluorescence measurement across a range of pressures and temperatures. The experiment parameters are input as a TSV file (see `viscotheque-example-matrix_2ex_11x9.tsv`) and then the instrument goes through the motions. A whole variety of different experiments can be done just by modifying the spreadsheet.
+
+__I recommend composing the input TSV in Google Sheets or Excel, then saving it as a text file to pipe into the script.__
+
+#### Reserved columns in the TSV
+
++ `P_set`: Pressure setpoint in instrument units (I keep my pump set to bar)
+
++ `T_set`: Temperature setpoint (°C)
+
++ `time`: Wait time (s) before beginning data collection for this step
+
++ `wl_ex`: Fluorescence excitation wavelength (nm)
+
++ `wl_em`: Fluorescence emission wavelength (nm)
+
++ `slit_ex`: Excitation slit width AKA bandwidth (nm)
+
++ `slit_em`: Emission slit width AKA bandwidth (nm)
+
+> All of the above should be float values, but be careful not to exceed the resolution of the associated instrument. For example, if you specify a temp setpoint of 20.05 bar but your temperature controller only measures to 0.1 bar, it may be impossible to reach your setpoint! There's some rounding code in there, but don't rely on it!
+
++ `n_read`: Number of fluorescence readings to take for this step. The RF5301 does not do any averaging internally, so data are always collected at the highest possible frequency and averaged on the computer side to control noise. The higher this value is set, the more values will be available for averaging.
+
+> This needs to be an integer.
+
+#### Unreserved columns
+
+`state`, `msg`, etc., and any other columns you care to include, will simply be copied into the output file for the duration of each step and can be used to aid post-processing. Bear in mind that adding including a lot of text in these columns will disproportionately enlarge the output file. There is _no_ compression! 
+
+### kinetheque.py
