@@ -15,23 +15,23 @@ The [below drivers](#hardware-drivers) are commented and I hope their methods wi
 
 Each module implements one device class. You can connect as many instances of the device as you like.
 
-* [(Teledyne) ISCO D-series high-pressure syringe pump `isco260D.py`](#isco260d-py)
+* [(Teledyne) ISCO D-series high-pressure syringe pump `isco260D.py`](#isco260dpy)
 
-* [(Thermo) NESLAB RTE series Digital Plus temperature controller `neslabrte.py`](#neslabrte-py)
+* [(Thermo) NESLAB RTE series Digital Plus temperature controller `neslabrte.py`](#neslabrtepy)
 
-* [Fisher Isotemp 6200 temperature controller `isotemp6200.py`](#isotemp6200-py)
+* [Fisher Isotemp 6200 temperature controller `isotemp6200.py`](#isotemp6200py)
 
-* [Shimadzu RF-5301PC spectrofluorophotometer `rf5301.py`](#rf5301-py)
+* [Shimadzu RF-5301PC spectrofluorophotometer `rf5301.py`](#rf5301py)
 
-* [Auxiliary microcontroller for misc functions](#amcu-py)
+* [Auxiliary microcontroller for misc functions `amcu.py`](#amcupy)
 
 ## Data collection suites
 
 Higher-level scripts are included here that use some or all of the above drivers. A feature of all these programs is that they write __raw__ data to the disk __in real time__. This prevents data loss should the software or computer crash mid-experiment, but it does result in some pretty big text files, since data are recorded at the temporal resolution of the fastest instrument. Data processing and visualization is left to [external scripts](#data-vizualization).
 
-* [Steady-state fluorimetry (e.g. Laurdan)](#viscotheque_laurdan-py)
+* [Steady-state fluorimetry (e.g. Laurdan)](#viscotheque_laurdanpy)
 
-* [Kinetics](#kinetheque-py)
+* [Kinetics](#kinethequepy)
 
 * [Calibration routines](#calibration-routines)
 
@@ -204,6 +204,22 @@ __I recommend composing the input TSV in Google Sheets or Excel, then saving it 
 
 #### Unreserved columns
 
-`state`, `msg`, etc., and any other columns you care to include, will simply be copied into the output file for the duration of each step and can be used to aid post-processing. Bear in mind that adding including a lot of text in these columns will disproportionately enlarge the output file. There is _no_ compression! 
+`state`, `msg`, etc., and any other columns you care to include, will simply be copied into the output file for the duration of each step and can be used to aid post-processing. Bear in mind that including a lot of text in these columns will disproportionately enlarge the output file. There is _no_ compression! 
 
 ### kinetheque.py
+
+This program records fluorescence intensity through time with provision for a pressure jump during the experiment. At present it's a fairly quick-and-dirty script: pressure setpoints are hardcoded and the temperature controller thread is omitted for simplicity. My kinetics experiments are at constant temp, so programmatic temperature control and tracking is not important.
+
+It's easy to adapt this program for a linear temperature ramp: the best strategy I have found is to put the pump in `pGa` (pressure gradient) mode, enter the desired gradient using the front panel, then remove the `press_set()` calls in the script so that `pump.run()` just starts the gradient. Per the manual, it is theoretically possible to enter gradient programs via serial, but I have yet to make this work.
+
+### Calibration routines
+
+It has occasionally been necessary to run experiments that quantify instrument parameters. I have included quick utility scripts for a few of these:
+
++ `thermocycle.py` runs the temperature controller through a TSV-specified program while recording internal and external RTD temperatures, plus a reference temp from a NIST-traceable QTI device. Used to calibrate temperature inside the pressure chamber.
+
++ `neslab_cal_sweep` is similar to `thermocycle` but adapted slightly for the NESLAB temperature controller.
+
++ `pressrecord.py` is a simple polling script that logs pressure, pump flowrate, and cylinder volume to a file. Like other data collection scripts here, it records elapsed time and date/time from the system clock. Handy for documenting simple pressure incubations or system integrity tests.
+
++ `flowrateTest.py` is used to determine how quickly the pressure can be ramped before an unacceptable pressure difference develops between the pump cylinder and the optical cell. This can be thought of as a practical measure of resistance in the pressure plumbing. It ramps between a (hardcoded) set of pressures at a (hardcoded) set of flowrates. When the experiment is complete, it is up to you to inspect the pressure trace and see how much it settles after the pump is stopped under each set of conditions. This information is useful for capping the flowrate in a kinetic experiment, or determining appropriate wait times for a steady-state protocol.
