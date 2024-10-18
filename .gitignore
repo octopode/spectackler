@@ -1,6 +1,7 @@
 *.pyc
 *bak*
 *scratch*
+*stash*
 # data files
 *data*
 *.log
