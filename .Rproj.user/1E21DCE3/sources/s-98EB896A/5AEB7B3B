@@ -1,0 +1,25 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1595444113418.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "0",
+    "id" : "5AEB7B3B",
+    "lastKnownWriteTime" : 1596472342,
+    "last_content_update" : 1596472342977,
+    "path" : "~/Documents/MBARI/spectackler/laurdan.R",
+    "project_path" : "laurdan.R",
+    "properties" : {
+        "cursorPosition" : "72,17",
+        "scrollLine" : "69"
+    },
+    "read_only" : false,
+    "read_only_alternatives" : [
+    ],
+    "relative_order" : 1,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_source"
+}

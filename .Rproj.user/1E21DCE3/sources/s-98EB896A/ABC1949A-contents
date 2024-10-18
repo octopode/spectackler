@@ -1,0 +1,113 @@
+# script for visualizing Laurdan GP landscapes (in real time, if desired!)
+
+library(tidyverse)
+library(ggpubr)
+library(gridExtra)
+library(MBA)
+library(reshape2)
+
+dir_data <- "/Users/jwinnikoff/Documents/MBARI/Lipids/CubetteData/"
+# the data in all these files look essentially fine
+pat_data <- "202007.*DOP.*\\.tsv" # filename pattern; UNIX glob
+
+files_data <- list.files(path = dir_data, pattern = pat_data, full.names = T)
+
+alldata <- files_data %>%
+  lapply(
+    function(file_data){
+      data_this_file <- file_data %>%
+        read_tsv() %>%
+        mutate(
+          file = file_data %>% basename(),
+          cpd = file %>% str_split("_") %>% unlist() %>% .[[2]]
+        )
+      return(data_this_file)
+    }
+  ) %>%
+  do.call(rbind, .)
+
+# just averages the ~5 consecutive readings
+fluordata <- alldata %>%
+  filter(abs(P_act - P_set) < 1) %>%
+  filter(intensity > 30) %>%
+  group_by(P_set, T_set, wl_em, state, file, cpd) %>%
+  summarize(
+    intensity = mean(intensity),
+    watch = mean(watch),
+    T_act = mean(T_act),
+    P_act = mean(P_act)
+  )
+
+# effective spread that ensures 440/490 msmts are properly paired
+fluordata_440 <- fluordata %>%
+  filter(wl_em == 440) %>%
+  mutate(state_match = state)
+
+fluordata_490 <- fluordata %>%
+  filter(wl_em == 490) %>%
+  mutate(state_match = state-1)
+
+gpdata <- fluordata_440 %>%
+  left_join(fluordata_490, by=c("T_set", "P_set", "state_match"), suffix=c("_440", "_490")) %>%
+  group_by(P_set, T_set, state_match, file_440) %>% 
+  drop_na() %>%
+  dplyr::mutate(
+    cpd = cpd_440,
+    gp = (intensity_440-intensity_490)/(intensity_440+intensity_490),
+    T_act = mean(mapply(T_act_440, T_act_490, FUN=mean)),
+    P_act = mean(mapply(P_act_440, P_act_490, FUN=mean))
+  ) %>%
+  # drop outliers
+  group_by(T_set) %>%
+  filter(between(gp, mean(gp, na.rm=TRUE) - (2.5 * sd(gp, na.rm=TRUE)),
+                 mean(gp, na.rm=TRUE) + (2.5 * sd(gp, na.rm=TRUE))))
+
+# check raw GP data, for QC
+gpdata %>% ggplot(aes(x=T_act, y=P_act, color=gp, shape=file_440)) +
+  geom_point(alpha=0.2) +
+  scale_color_distiller(palette="YlGnBu", direction=1) +
+  scale_y_reverse() +
+  theme_pubr()
+
+# interpolated field plot of GP
+gpdata %>%
+  ungroup() %>%
+  #filter(cpd != "DOPE") %>% 
+  select(T_act, P_act, gp, cpd) %>%
+  group_by(cpd) %>% 
+  group_split() %>% lapply(
+    # m is roughly equivalent to smoothing in y; n in x
+    function(scape_raw, m=.1, n=.1, nox=100, noy=100){
+      # interpolate!
+      scape_raw %>% 
+        select(T_act, P_act, gp) %>% 
+        mba.surf(n=n, m=m, no.X=nox, no.Y=noy, extend=TRUE) %>%
+        .$xyz.est %>%
+        reshape2::melt(.$z, varnames = c('T_act_sc', 'P_act_sc'), value.name = 'gp') %>%
+        as_tibble() %>%
+        drop_na() %>% 
+        # rescale
+        mutate(
+          P_act = P_act_sc/noy * (max(alldata$P_act)-min(alldata$P_act)) + min(alldata$P_act),
+          T_act = T_act_sc/nox * (max(alldata$T_act)-min(alldata$T_act)) + min(alldata$T_act),
+          # and put the grouping column back
+          cpd = scape_raw$cpd[[1]]
+        )
+    }
+  ) %>%
+  do.call(rbind, .) %>% 
+  #filter((P_act >= 0) & (T_act >= 0)) %>%
+  ggplot(aes(x=T_act, y=P_act, z=gp, color=cpd)) +
+  #geom_raster() +
+  geom_contour(bins=10) +
+  scale_color_brewer(palette = "Dark2") +
+  geom_point(data = gpdata, alpha=0.05, shape=1) +
+  theme_pubr() +
+  theme(legend.position = "bottom") +
+  scale_y_reverse() +
+  ggtitle("GP vs. Pressure vs. Temperature") +
+  labs(x="Temperature (deg C)", y="Pressure (bar)", fill="Laurdan GP") +
+  guides(fill = guide_colourbar(label.theme = element_text(angle = 45, vjust=0.5)))
+
+ggsave(file = img_out, plot = image, width = 6.5, height = 8.0)
+

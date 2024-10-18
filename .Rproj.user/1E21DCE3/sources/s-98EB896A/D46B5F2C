@@ -1,0 +1,33 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1596232889924.000,
+    "dirty" : false,
+    "encoding" : "",
+    "folds" : "",
+    "hash" : "0",
+    "id" : "D46B5F2C",
+    "lastKnownWriteTime" : 140678969448744,
+    "last_content_update" : 1596232889924,
+    "path" : null,
+    "project_path" : null,
+    "properties" : {
+        "cacheKey" : "630B8001",
+        "caption" : "gpdata",
+        "contentUrl" : "grid_resource/gridviewer.html?env=&obj=gpdata&cache_key=630B8001",
+        "displayedObservations" : 3405,
+        "environment" : "",
+        "expression" : "gpdata",
+        "object" : "gpdata",
+        "preview" : 0,
+        "totalObservations" : 3405,
+        "variables" : 22
+    },
+    "read_only" : false,
+    "read_only_alternatives" : [
+    ],
+    "relative_order" : 3,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_dataframe"
+}
